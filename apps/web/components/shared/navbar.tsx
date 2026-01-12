@@ -9,6 +9,7 @@ import WalletConnect from "./wallet-connect";
 
 const links = [
   { href: "/events", label: "Events" },
+  { href: "/dashboard", label: "Dashboard" },
   { href: "/badges", label: "Badges" },
   { href: "/create", label: "Create Event" },
 ];

@@ -3,6 +3,7 @@
 import { Calendar, Clock, Star, ArrowRight, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 
 interface Event {
   id: string;
@@ -11,12 +12,28 @@ interface Event {
   date: string;
   startTime: string;
   endTime: string;
-  status: "upcoming" | "past";
+  status: "live" | "upcoming" | "past";
   claimable: boolean;
   bannerGradient: string;
+  claimsCount?: number;
+  totalSupply?: number;
 }
 
 // Mock event data
+const LIVE_EVENTS: Event[] = Array.from({ length: 2 }, (_, i) => ({
+  id: `live-${i + 1}`,
+  title: "Stacks Defi show #80",
+  host: "Stacks Foundation",
+  date: "Jan 12, 2026",
+  startTime: "6PM",
+  endTime: "7PM",
+  status: "live",
+  claimable: true,
+  bannerGradient: "from-red-500 via-orange-500 to-pink-600",
+  claimsCount: 45,
+  totalSupply: 100,
+}));
+
 const FEATURED_EVENT: Event = {
   id: "featured-1",
   title: "Stacks Defi show #80",
@@ -59,12 +76,27 @@ interface EventCardProps {
 }
 
 function EventCard({ event, featured = false }: EventCardProps) {
+  const isLive = event.status === "live";
+
   return (
     <div
-      className={`group relative rounded-2xl border border-primary bg-background overflow-hidden transition-all hover:shadow-lg ${
+      className={`group relative rounded-2xl border ${
+        isLive ? "border-red-500/50" : "border-primary"
+      } bg-background overflow-hidden transition-all hover:shadow-lg ${
         featured ? "" : ""
       }`}
     >
+      {/* Live Indicator */}
+      {isLive && (
+        <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 bg-red-500 text-white px-2.5 py-1 rounded-full text-xs font-semibold shadow-lg">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+          </span>
+          LIVE
+        </div>
+      )}
+
       {/* Event Banner */}
       <div
         className={`relative ${
@@ -98,7 +130,11 @@ function EventCard({ event, featured = false }: EventCardProps) {
         <div className="flex items-center gap-2 text-xs">
           <Badge
             variant="secondary"
-            className="gap-1.5 bg-primary/10 text-primary hover:bg-primary/20"
+            className={`gap-1.5 ${
+              isLive
+                ? "bg-red-500/10 text-red-500 hover:bg-red-500/20"
+                : "bg-primary/10 text-primary hover:bg-primary/20"
+            }`}
           >
             <Calendar className="h-3 w-3" />
             {event.date}
@@ -111,11 +147,32 @@ function EventCard({ event, featured = false }: EventCardProps) {
           </div>
         </div>
 
+        {/* Live Stats */}
+        {isLive &&
+          event.claimsCount !== undefined &&
+          event.totalSupply !== undefined && (
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">Claims:</span>
+              <span className="font-semibold">
+                {event.claimsCount} / {event.totalSupply}
+              </span>
+            </div>
+          )}
+
         {/* Action Button */}
         {event.claimable ? (
-          <Button className="w-full gap-2 bg-primary hover:bg-primary/90">
-            CLAIM BADGE
-            <ArrowRight className="h-4 w-4" />
+          <Button
+            className={`w-full gap-2 ${
+              isLive
+                ? "bg-red-500 hover:bg-red-600 animate-pulse"
+                : "bg-primary hover:bg-primary/90"
+            }`}
+            asChild
+          >
+            <Link href={`/events/${event.id}`}>
+              {isLive ? "CLAIM NOW" : "CLAIM BADGE"}
+              <ArrowRight className="h-4 w-4" />
+            </Link>
           </Button>
         ) : (
           <Button
@@ -144,6 +201,32 @@ export default function EventsPage() {
             {/* Optional: Add featured event details overlay here */}
           </div>
         </div>
+
+        {/* Live Events Section */}
+        {LIVE_EVENTS.length > 0 && (
+          <section className="mb-12">
+            <div className="flex items-center gap-2 mb-6">
+              <div className="relative flex items-center gap-2">
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                </span>
+                <h2 className="text-2xl font-bold text-foreground">
+                  Live Events
+                </h2>
+              </div>
+              <Badge className="bg-red-500/10 text-red-500 hover:bg-red-500/20 border-red-500/20">
+                {LIVE_EVENTS.length} Active
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {LIVE_EVENTS.map((event) => (
+                <EventCard key={event.id} event={event} />
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Upcoming Events Section */}
         <section className="mb-12">
