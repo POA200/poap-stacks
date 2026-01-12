@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -9,7 +8,6 @@ import {
   Loader2,
   AlertCircle,
   ExternalLink,
-  Share2,
   Calendar,
   Clock,
   MapPin,
@@ -43,7 +41,6 @@ type ClaimStatus =
   | "not-eligible";
 
 export default function EventPage({ params }: EventPageProps) {
-  const router = useRouter();
   const [eventId, setEventId] = useState<string>("");
   const [claimStatus, setClaimStatus] = useState<ClaimStatus>("idle");
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -71,7 +68,7 @@ export default function EventPage({ params }: EventPageProps) {
           const stxAddress = data?.addresses?.stx?.[0]?.address;
           setWalletAddress(stxAddress || null);
         }
-      } catch (error) {
+      } catch {
         // Silently fail - wallet extension might not be available
       }
     };
@@ -117,14 +114,9 @@ export default function EventPage({ params }: EventPageProps) {
       setTxId("0x" + Math.random().toString(16).substring(2, 42));
 
       setClaimStatus("success");
-    } catch (error) {
-      console.error("Claim failed:", error);
+    } catch {
       setClaimStatus("error");
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Failed to claim badge. Please try again."
-      );
+      setErrorMessage("Failed to claim badge. Please try again.");
       setProgress(0);
     }
   };
@@ -148,49 +140,13 @@ export default function EventPage({ params }: EventPageProps) {
         setClaimStatus("idle");
         setErrorMessage("");
       }
-    } catch (error) {
+    } catch {
       setErrorMessage("Failed to connect wallet");
     }
   };
 
   const getSlicedAddress = (addr: string): string => {
     return `${addr.slice(0, 8)}...${addr.slice(-6)}`;
-  };
-
-  const renderClaimButton = () => {
-    if (!walletAddress) {
-      return (
-        <Button size="lg" className="w-full" onClick={handleConnectWallet}>
-          Connect Wallet to Claim
-        </Button>
-      );
-    }
-
-    if (claimStatus === "checking" || claimStatus === "claiming") {
-      return (
-        <Button size="lg" className="w-full" disabled>
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-          {claimStatus === "checking"
-            ? "Verifying Eligibility..."
-            : "Processing Claim..."}
-        </Button>
-      );
-    }
-
-    if (claimStatus === "success") {
-      return (
-        <Button size="lg" className="w-full" disabled variant="outline">
-          <Check className="mr-2 h-5 w-5" />
-          Badge Claimed Successfully
-        </Button>
-      );
-    }
-
-    return (
-      <Button size="lg" className="w-full" onClick={handleClaim}>
-        Claim Your Badge
-      </Button>
-    );
   };
 
   return (
@@ -274,7 +230,7 @@ export default function EventPage({ params }: EventPageProps) {
             <AlertTitle>Not Eligible</AlertTitle>
             <AlertDescription>
               You are not eligible to claim this badge. This may be because you
-              didn't attend the event or have already claimed your badge.
+              didn&apos;t attend the event or have already claimed your badge.
             </AlertDescription>
           </Alert>
         )}
@@ -359,7 +315,7 @@ export default function EventPage({ params }: EventPageProps) {
               </h3>
               <p className="text-sm">
                 Join our weekly deep dive into Stacks DeFi ecosystem. This week
-                we're covering Bitcoin L2 developments, recent protocol
+                we&apos;re covering Bitcoin L2 developments, recent protocol
                 upgrades, and the latest trends in decentralized finance on
                 Stacks.
               </p>

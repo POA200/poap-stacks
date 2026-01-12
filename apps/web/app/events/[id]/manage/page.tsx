@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
-  Users,
   TrendingUp,
   Clock,
   ExternalLink,
@@ -380,9 +379,9 @@ export default function ManageEventPage({ params }: ManageEventPageProps) {
                   </h4>
                   <p className="text-sm text-muted-foreground">
                     Join our weekly deep dive into Stacks DeFi ecosystem. This
-                    week we're covering Bitcoin L2 developments, recent protocol
-                    upgrades, and the latest trends in decentralized finance on
-                    Stacks.
+                    week we&apos;re covering Bitcoin L2 developments, recent
+                    protocol upgrades, and the latest trends in decentralized
+                    finance on Stacks.
                   </p>
                 </div>
               </CardContent>

@@ -4,14 +4,12 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Plus,
-  Edit,
   Eye,
   Settings,
   TrendingUp,
-  Users,
   Clock,
-  ArrowRight,
   MoreVertical,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,7 +41,6 @@ interface CreatedEvent {
 
 export default function DashboardPage() {
   const [connected, setConnected] = useState(false);
-  const [address, setAddress] = useState<string | null>(null);
 
   useEffect(() => {
     const checkConnection = async () => {
@@ -51,18 +48,13 @@ export default function DashboardPage() {
         const stacksConnect = await import("@stacks/connect").catch(() => null);
         if (!stacksConnect) return;
 
-        const { isConnected, getLocalStorage } = stacksConnect;
+        const { isConnected } = stacksConnect;
         const isWalletConnected = isConnected();
 
         if (isWalletConnected) {
-          const data = getLocalStorage();
-          const stxAddress = data?.addresses?.stx?.[0]?.address;
-          if (stxAddress) {
-            setAddress(stxAddress);
-            setConnected(true);
-          }
+          setConnected(true);
         }
-      } catch (error) {
+      } catch {
         // Silently fail
       }
     };
@@ -260,7 +252,7 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle>Your Events</CardTitle>
             <CardDescription>
-              View and manage all events you've created
+              View and manage all events you&apos;ve created
             </CardDescription>
           </CardHeader>
           <CardContent>
