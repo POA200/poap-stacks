@@ -93,7 +93,7 @@ export function Testimonials() {
               <CardContent className="p-6 sm:p-8">
                 {/* Quote */}
                 <p className="text-base sm:text-lg text-foreground/90 font-light leading-relaxed mb-6">
-                  "{testimonial.quote}"
+                  &ldquo;{testimonial.quote}&rdquo;
                 </p>
 
                 {/* Author Info */}

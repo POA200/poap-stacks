@@ -4,12 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  connect,
-  disconnect,
-  isConnected,
-  getLocalStorage,
-} from "@stacks/connect";
+import { connect, isConnected, getLocalStorage } from "@stacks/connect";
 
 export default function WalletConnect() {
   const router = useRouter();

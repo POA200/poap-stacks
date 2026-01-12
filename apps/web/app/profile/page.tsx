@@ -93,7 +93,7 @@ export default function ProfilePage() {
               <div>
                 <h3 className="font-medium">Event History</h3>
                 <p className="text-sm text-muted-foreground">
-                  View all events you've attended
+                  View all events you&apos;ve attended
                 </p>
               </div>
               <Button variant="outline" disabled>
@@ -131,7 +131,7 @@ export default function ProfilePage() {
           <CardHeader>
             <CardTitle>My Badges</CardTitle>
             <CardDescription>
-              View all badges you've earned from attending events
+              View all badges you&apos;ve earned from attending events
             </CardDescription>
           </CardHeader>
           <CardContent>

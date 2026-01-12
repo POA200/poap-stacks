@@ -9,13 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 interface EventPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
-export default function EventPage({ params }: EventPageProps) {
-  const { id } = params;
+export default async function EventPage({ params }: EventPageProps) {
+  const { id } = await params;
 
   return (
     <div className="container mx-auto px-4 py-8">
