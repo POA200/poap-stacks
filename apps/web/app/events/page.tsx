@@ -1,74 +1,34 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Calendar, Clock, Star, ArrowRight, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/shared/empty-state";
 import Link from "next/link";
 
 interface Event {
   id: string;
   title: string;
-  host: string;
-  date: string;
+  description?: string | null;
+  location?: string | null;
   startTime: string;
   endTime: string;
-  status: "live" | "upcoming" | "past";
-  claimable: boolean;
-  bannerGradient: string;
-  claimsCount?: number;
-  totalSupply?: number;
+  bannerUrl?: string | null;
+  maxAttendees?: number | null;
+  isActive: boolean;
+  hostId: string;
+  host: {
+    id: string;
+    walletAddress: string;
+    username: string | null;
+    avatarUrl: string | null;
+  };
+  _count: {
+    claims: number;
+  };
 }
-
-// Mock event data
-const LIVE_EVENTS: Event[] = Array.from({ length: 2 }, (_, i) => ({
-  id: `live-${i + 1}`,
-  title: "Stacks Defi show #80",
-  host: "Stacks Foundation",
-  date: "Jan 12, 2026",
-  startTime: "6PM",
-  endTime: "7PM",
-  status: "live",
-  claimable: true,
-  bannerGradient: "from-red-500 via-orange-500 to-pink-600",
-  claimsCount: 45,
-  totalSupply: 100,
-}));
-
-const FEATURED_EVENT: Event = {
-  id: "featured-1",
-  title: "Stacks Defi show #80",
-  host: "Stacks Foundation",
-  date: "Sep 30, 2025",
-  startTime: "6PM",
-  endTime: "7PM",
-  status: "upcoming",
-  claimable: true,
-  bannerGradient: "from-blue-600 via-purple-600 to-purple-800",
-};
-
-const UPCOMING_EVENTS: Event[] = Array.from({ length: 4 }, (_, i) => ({
-  id: `upcoming-${i + 1}`,
-  title: "Stacks Defi show #80",
-  host: "Join our weekly show",
-  date: "Sep 30, 2025",
-  startTime: "6PM",
-  endTime: "7PM",
-  status: "upcoming",
-  claimable: true,
-  bannerGradient: "from-blue-600 via-purple-600 to-purple-800",
-}));
-
-const PAST_EVENTS: Event[] = Array.from({ length: 4 }, (_, i) => ({
-  id: `past-${i + 1}`,
-  title: "Stacks Defi show #80",
-  host: "Join our weekly show",
-  date: "Sep 30, 2025",
-  startTime: "6PM",
-  endTime: "7PM",
-  status: "past",
-  claimable: false,
-  bannerGradient: "from-blue-600 via-purple-600 to-purple-800",
-}));
 
 interface EventCardProps {
   event: Event;
@@ -76,7 +36,34 @@ interface EventCardProps {
 }
 
 function EventCard({ event, featured = false }: EventCardProps) {
-  const isLive = event.status === "live";
+  const now = new Date();
+  const startTime = new Date(event.startTime);
+  const endTime = new Date(event.endTime);
+
+  const isLive = now >= startTime && now <= endTime && event.isActive;
+  const isPast = now > endTime || !event.isActive;
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
+  const getBannerGradient = () => {
+    if (isLive) return "from-red-500 via-orange-500 to-pink-600";
+    if (isPast) return "from-gray-500 via-gray-600 to-gray-700";
+    return "from-blue-600 via-purple-600 to-purple-800";
+  };
 
   return (
     <div
@@ -101,9 +88,17 @@ function EventCard({ event, featured = false }: EventCardProps) {
       <div
         className={`relative ${
           featured ? "h-48" : "h-32"
-        } bg-gradient-to-br ${event.bannerGradient} overflow-hidden`}
+        } bg-gradient-to-br ${getBannerGradient()} overflow-hidden`}
       >
-        <div className="absolute inset-0 opacity-20 mix-blend-overlay" />
+        {event.bannerUrl ? (
+          <img
+            src={event.bannerUrl}
+            alt={event.title}
+            className="object-cover w-full h-full"
+          />
+        ) : (
+          <div className="absolute inset-0 opacity-20 mix-blend-overlay" />
+        )}
       </div>
 
       {/* Event Details */}
@@ -115,14 +110,17 @@ function EventCard({ event, featured = false }: EventCardProps) {
             <h3
               className={`font-medium text-foreground ${
                 featured ? "text-lg" : "text-base"
-              }`}
+              } truncate`}
             >
               {event.title}
             </h3>
           </div>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <User className="h-3 w-3" />
-            <span>{event.host}</span>
+            <span className="truncate">
+              {event.host.username ||
+                event.host.walletAddress.slice(0, 8) + "..."}
+            </span>
           </div>
         </div>
 
@@ -137,30 +135,28 @@ function EventCard({ event, featured = false }: EventCardProps) {
             }`}
           >
             <Calendar className="h-3 w-3" />
-            {event.date}
+            {formatDate(startTime)}
           </Badge>
           <div className="flex items-center gap-1 text-muted-foreground">
             <Clock className="h-3 w-3" />
             <span>
-              {event.startTime}-{event.endTime} UTC
+              {formatTime(startTime)}-{formatTime(endTime)}
             </span>
           </div>
         </div>
 
         {/* Live Stats */}
-        {isLive &&
-          event.claimsCount !== undefined &&
-          event.totalSupply !== undefined && (
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Claims:</span>
-              <span className="font-semibold">
-                {event.claimsCount} / {event.totalSupply}
-              </span>
-            </div>
-          )}
+        {isLive && event.maxAttendees && (
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">Claims:</span>
+            <span className="font-semibold">
+              {event._count.claims} / {event.maxAttendees}
+            </span>
+          </div>
+        )}
 
         {/* Action Button */}
-        {event.claimable ? (
+        {!isPast ? (
           <Button
             className={`w-full gap-2 ${
               isLive
@@ -189,21 +185,111 @@ function EventCard({ event, featured = false }: EventCardProps) {
 }
 
 export default function EventsPage() {
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const response = await fetch("/api/events");
+        if (!response.ok) throw new Error("Failed to fetch events");
+        const data = await response.json();
+        setEvents(data);
+      } catch (error) {
+        console.error("Error fetching events:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEvents();
+  }, []);
+
+  // Categorize events
+  const now = new Date();
+  const liveEvents = events.filter((event) => {
+    const startTime = new Date(event.startTime);
+    const endTime = new Date(event.endTime);
+    return now >= startTime && now <= endTime && event.isActive;
+  });
+
+  const upcomingEvents = events.filter((event) => {
+    const startTime = new Date(event.startTime);
+    return now < startTime;
+  });
+
+  const pastEvents = events.filter((event) => {
+    const endTime = new Date(event.endTime);
+    return now > endTime || !event.isActive;
+  });
+
+  const featuredEvent = upcomingEvents[0] || liveEvents[0];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-8 max-w-7xl">
+          <Skeleton className="h-56 rounded-3xl mb-12" />
+          <div className="space-y-12">
+            <div>
+              <Skeleton className="h-8 w-48 mb-6" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-80 rounded-2xl" />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (events.length === 0) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-16 max-w-3xl">
+          <EmptyState
+            icon={Calendar}
+            title="No Events Yet"
+            description="Be the first to create a POAP event and start building your community's on-chain legacy."
+            actionLabel="Create Event"
+            actionHref="/create"
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Featured Event Banner */}
-        <div className="mb-12">
-          <div
-            className={`relative h-56 rounded-3xl bg-gradient-to-br ${FEATURED_EVENT.bannerGradient} overflow-hidden shadow-xl`}
-          >
-            <div className="absolute inset-0 opacity-30 mix-blend-overlay" />
-            {/* Optional: Add featured event details overlay here */}
+        {featuredEvent && (
+          <div className="mb-12">
+            <div
+              className={`relative h-56 rounded-3xl bg-gradient-to-br ${
+                new Date() >= new Date(featuredEvent.startTime) &&
+                new Date() <= new Date(featuredEvent.endTime)
+                  ? "from-red-500 via-orange-500 to-pink-600"
+                  : "from-blue-600 via-purple-600 to-purple-800"
+              } overflow-hidden shadow-xl`}
+            >
+              {featuredEvent.bannerUrl ? (
+                <img
+                  src={featuredEvent.bannerUrl}
+                  alt={featuredEvent.title}
+                  className="object-cover w-full h-full"
+                />
+              ) : (
+                <div className="absolute inset-0 opacity-30 mix-blend-overlay" />
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Live Events Section */}
-        {LIVE_EVENTS.length > 0 && (
+        {liveEvents.length > 0 && (
           <section className="mb-12">
             <div className="flex items-center gap-2 mb-6">
               <div className="relative flex items-center gap-2">
@@ -216,12 +302,12 @@ export default function EventsPage() {
                 </h2>
               </div>
               <Badge className="bg-red-500/10 text-red-500 hover:bg-red-500/20 border-red-500/20">
-                {LIVE_EVENTS.length} Active
+                {liveEvents.length} Active
               </Badge>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {LIVE_EVENTS.map((event) => (
+              {liveEvents.map((event) => (
                 <EventCard key={event.id} event={event} />
               ))}
             </div>
@@ -229,34 +315,40 @@ export default function EventsPage() {
         )}
 
         {/* Upcoming Events Section */}
-        <section className="mb-12">
-          <div className="flex items-center gap-2 mb-6">
-            <Star className="h-5 w-5 text-foreground" />
-            <h2 className="text-2xl font-bold text-foreground">
-              Upcoming Events
-            </h2>
-          </div>
+        {upcomingEvents.length > 0 && (
+          <section className="mb-12">
+            <div className="flex items-center gap-2 mb-6">
+              <Star className="h-5 w-5 text-foreground" />
+              <h2 className="text-2xl font-bold text-foreground">
+                Upcoming Events
+              </h2>
+            </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {UPCOMING_EVENTS.map((event) => (
-              <EventCard key={event.id} event={event} />
-            ))}
-          </div>
-        </section>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {upcomingEvents.map((event) => (
+                <EventCard key={event.id} event={event} />
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Past Events Section */}
-        <section>
-          <div className="flex items-center gap-2 mb-6">
-            <Clock className="h-5 w-5 text-foreground" />
-            <h2 className="text-2xl font-bold text-foreground">Past Events</h2>
-          </div>
+        {pastEvents.length > 0 && (
+          <section>
+            <div className="flex items-center gap-2 mb-6">
+              <Clock className="h-5 w-5 text-foreground" />
+              <h2 className="text-2xl font-bold text-foreground">
+                Past Events
+              </h2>
+            </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {PAST_EVENTS.map((event) => (
-              <EventCard key={event.id} event={event} />
-            ))}
-          </div>
-        </section>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {pastEvents.map((event) => (
+                <EventCard key={event.id} event={event} />
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </div>
   );

@@ -1,75 +1,147 @@
 "use client";
 
-import { useState } from "react";
-import { Award, ChevronLeft, ChevronRight } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
+import Link from "next/link";
+import {
+  Award,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  MapPin,
+  User,
+} from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/shared/empty-state";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 type TimeFilter = "all" | "week" | "month";
-type BadgeType = "attendance" | "achievement" | "special";
 type SortOption = "newest" | "oldest" | "alphabetical";
 
-interface Badge {
+interface Claim {
   id: string;
-  title: string;
-  date: Date;
-  type: BadgeType;
+  tokenId: string | null;
+  txId: string | null;
+  claimedAt: string;
+  event: {
+    id: string;
+    title: string;
+    description: string | null;
+    location?: string | null;
+    startTime: string;
+    endTime: string;
+    bannerUrl: string | null;
+    host: {
+      id: string;
+      walletAddress: string;
+      username: string | null;
+    };
+  };
 }
-
-// Mock badge data - static to prevent hydration mismatch
-const MOCK_BADGES: Badge[] = Array.from({ length: 12 }, (_, i) => ({
-  id: `badge-${i + 1}`,
-  title: `Badge ${i + 1}`,
-  date: new Date(Date.now() - i * 2 * 24 * 60 * 60 * 1000),
-  type: ["attendance", "achievement", "special"][i % 3] as BadgeType,
-}));
 
 const BADGES_PER_PAGE = 6;
 
 export default function BadgesPage() {
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
-  const [badgeType, setBadgeType] = useState<BadgeType>("attendance");
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [currentPage, setCurrentPage] = useState(1);
+  const [claims, setClaims] = useState<Claim[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userAddress, setUserAddress] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Get user's wallet address on mount
+  useEffect(() => {
+    const checkWalletConnection = async () => {
+      try {
+        const { isConnected, getLocalStorage } =
+          await import("@stacks/connect");
+        if (isConnected()) {
+          const data = getLocalStorage();
+          const stxAddress = data?.addresses?.stx?.[0]?.address;
+          setUserAddress(stxAddress || null);
+        }
+      } catch (error) {
+        console.error("Failed to check wallet connection:", error);
+      }
+    };
+
+    checkWalletConnection();
+  }, []);
+
+  // Fetch user's claimed badges
+  useEffect(() => {
+    const fetchClaims = async () => {
+      if (!userAddress) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/user/${userAddress}`);
+        if (!response.ok) throw new Error("Failed to fetch user data");
+        const userData = await response.json();
+        setClaims(userData.claims || []);
+      } catch (error) {
+        console.error("Error fetching claims:", error);
+        setError("Unable to load badges right now. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchClaims();
+  }, [userAddress]);
 
   // Filter badges based on time filter
-  const filterByTime = (badges: Badge[], filter: TimeFilter): Badge[] => {
+  const filterByTime = (claims: Claim[], filter: TimeFilter): Claim[] => {
     const now = new Date();
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     switch (filter) {
       case "week":
-        return badges.filter((b) => b.date >= oneWeekAgo);
+        return claims.filter((c) => new Date(c.claimedAt) >= oneWeekAgo);
       case "month":
-        return badges.filter((b) => b.date >= oneMonthAgo);
+        return claims.filter((c) => new Date(c.claimedAt) >= oneMonthAgo);
       case "all":
       default:
-        return badges;
+        return claims;
     }
   };
 
   // Sort badges
-  const sortBadges = (badges: Badge[], option: SortOption): Badge[] => {
-    const sorted = [...badges];
+  const sortBadges = (claims: Claim[], option: SortOption): Claim[] => {
+    const sorted = [...claims];
     switch (option) {
       case "newest":
-        return sorted.sort((a, b) => b.date.getTime() - a.date.getTime());
+        return sorted.sort(
+          (a, b) =>
+            new Date(b.claimedAt).getTime() - new Date(a.claimedAt).getTime()
+        );
       case "oldest":
-        return sorted.sort((a, b) => a.date.getTime() - b.date.getTime());
+        return sorted.sort(
+          (a, b) =>
+            new Date(a.claimedAt).getTime() - new Date(b.claimedAt).getTime()
+        );
       case "alphabetical":
-        return sorted.sort((a, b) => a.title.localeCompare(b.title));
+        return sorted.sort((a, b) =>
+          a.event.title.localeCompare(b.event.title)
+        );
       default:
         return sorted;
     }
   };
 
-  // Apply filters and sorting
-  const filteredBadges = filterByTime(MOCK_BADGES, timeFilter);
-  const sortedBadges = sortBadges(filteredBadges, sortBy);
+  const filteredBadges = useMemo(() => {
+    return sortBadges(filterByTime(claims, timeFilter), sortBy);
+  }, [claims, sortBy, timeFilter]);
 
-  // Paginate
-  const totalPages = Math.ceil(sortedBadges.length / BADGES_PER_PAGE);
+  const totalPages = Math.ceil(filteredBadges.length / BADGES_PER_PAGE);
   const startIdx = (currentPage - 1) * BADGES_PER_PAGE;
-  const displayedBadges = sortedBadges.slice(
+  const displayedBadges = filteredBadges.slice(
     startIdx,
     startIdx + BADGES_PER_PAGE
   );
@@ -77,6 +149,14 @@ export default function BadgesPage() {
   const handleTimeFilterClick = (filter: TimeFilter) => {
     setTimeFilter(filter);
     setCurrentPage(1);
+  };
+
+  const formatDateTime = (value: string) => {
+    const date = new Date(value);
+    return `${date.toLocaleDateString()} • ${date.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    })}`;
   };
 
   const goToPage = (page: number) => {
@@ -103,7 +183,6 @@ export default function BadgesPage() {
 
         {/* Filters and Controls */}
         <div className="flex flex-col gap-4 mb-8">
-          {/* Time Filters */}
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => handleTimeFilterClick("all")}
@@ -136,24 +215,8 @@ export default function BadgesPage() {
               This Month
             </button>
 
-            {/* Divider */}
             <div className="h-5 w-px bg-border mx-1" />
 
-            {/* Type Dropdown */}
-            <label className="text-xs font-medium text-muted-foreground">
-              Type:
-            </label>
-            <select
-              value={badgeType}
-              onChange={(e) => setBadgeType(e.target.value as BadgeType)}
-              className="px-2.5 py-1.5 text-sm rounded-full border border-input bg-muted text-foreground font-medium focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer"
-            >
-              <option value="attendance">Attendance</option>
-              <option value="achievement">Achievement</option>
-              <option value="special">Special</option>
-            </select>
-
-            {/* Sort Dropdown */}
             <label className="text-xs font-medium text-muted-foreground">
               Sort:
             </label>
@@ -169,39 +232,108 @@ export default function BadgesPage() {
           </div>
         </div>
 
-        {/* Badges Grid */}
         <div className="mb-8">
-          {displayedBadges.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {displayedBadges.map((badge) => (
-                <div
-                  key={badge.id}
-                  className="group relative aspect-square rounded-2xl bg-gradient-to-br from-blue-600 via-purple-600 to-purple-800 overflow-hidden shadow-lg hover:shadow-xl transition-shadow cursor-pointer"
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Array.from({ length: 6 }).map((_, idx) => (
+                <Skeleton key={idx} className="h-56 rounded-2xl" />
+              ))}
+            </div>
+          ) : !userAddress ? (
+            <EmptyState
+              icon={Award}
+              title="Connect your wallet"
+              description="Link your Stacks wallet to see all badges you have claimed across events."
+              actionLabel="Go to Home"
+              actionHref="/"
+            />
+          ) : error ? (
+            <EmptyState
+              icon={Award}
+              title="Could not load badges"
+              description={error}
+              actionLabel="Try Events"
+              actionHref="/events"
+            />
+          ) : displayedBadges.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {displayedBadges.map((claim) => (
+                <Card
+                  key={claim.id}
+                  className="border border-primary-dark/40 bg-gradient-to-br from-primary/5 via-background to-background"
                 >
-                  {/* Badge Content Placeholder */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <p className="text-white text-sm font-medium">
-                        {badge.title}
-                      </p>
-                      <p className="text-white/70 text-xs mt-1">
-                        {badge.date.toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
+                  <CardHeader className="space-y-1 pb-3">
+                    <CardTitle className="flex items-center justify-between text-lg">
+                      <span className="line-clamp-1">{claim.event.title}</span>
+                      <Badge variant="secondary" className="gap-1">
+                        <Award className="h-3 w-3" />
+                        Claimed
+                      </Badge>
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {claim.event.description ||
+                        "On-chain proof of attendance."}
+                    </p>
+                  </CardHeader>
 
-                  {/* Gradient Overlay */}
-                  <div className="absolute inset-0 opacity-20 mix-blend-overlay" />
-                </div>
+                  <CardContent className="space-y-3">
+                    <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+                      <span className="inline-flex items-center gap-1">
+                        <CalendarDays className="h-4 w-4" />
+                        {formatDateTime(claim.event.startTime)}
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <Clock className="h-4 w-4" />
+                        Claimed {formatDateTime(claim.claimedAt)}
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <User className="h-4 w-4" />
+                        {claim.event.host.username ||
+                          claim.event.host.walletAddress}
+                      </span>
+                    </div>
+
+                    {claim.event.bannerUrl && (
+                      <div className="overflow-hidden rounded-xl">
+                        <img
+                          src={claim.event.bannerUrl}
+                          alt={claim.event.title}
+                          className="h-32 w-full object-cover"
+                        />
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <span className="inline-flex items-center gap-1">
+                        <MapPin className="h-4 w-4" />
+                        {claim.event.location ||
+                          claim.event.host.username ||
+                          "Stacks Event"}
+                      </span>
+                      <Button
+                        asChild
+                        size="sm"
+                        variant="ghost"
+                        className="gap-1"
+                      >
+                        <Link href={`/events/${claim.event.id}`}>
+                          View event
+                          <ChevronRight className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           ) : (
-            <div className="text-center py-12">
-              <Award className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">
-                No badges found for the selected filters.
-              </p>
-            </div>
+            <EmptyState
+              icon={Award}
+              title="No badges yet"
+              description="Claim your first POAP by joining an event and your badges will show up here."
+              actionLabel="Browse Events"
+              actionHref="/events"
+            />
           )}
         </div>
 

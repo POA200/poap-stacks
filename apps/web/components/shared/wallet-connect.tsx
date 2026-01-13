@@ -12,6 +12,20 @@ export default function WalletConnect() {
   const [connected, setConnected] = useState(false);
   const [address, setAddress] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasSynced, setHasSynced] = useState(false);
+
+  const syncUser = async (walletAddress: string) => {
+    try {
+      await fetch("/api/user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ walletAddress }),
+      });
+      setHasSynced(true);
+    } catch (error) {
+      console.error("Failed to sync user:", error);
+    }
+  };
 
   useEffect(() => {
     // Check connection status on mount
@@ -26,6 +40,7 @@ export default function WalletConnect() {
             // Get STX testnet address (first STX address from the array)
             const stxAddress = data?.addresses?.stx?.[0]?.address;
             setAddress(stxAddress || null);
+            setHasSynced(false);
           }
         })
         .catch((err) => {
@@ -50,6 +65,8 @@ export default function WalletConnect() {
       if (stxAddress) {
         setAddress(stxAddress);
         setConnected(true);
+        setHasSynced(false);
+        await syncUser(stxAddress);
       }
     } catch (error) {
       console.error("Failed to connect wallet:", error);
@@ -61,6 +78,12 @@ export default function WalletConnect() {
   const handleProfileClick = () => {
     router.push("/profile");
   };
+
+  useEffect(() => {
+    if (address && connected && !hasSynced) {
+      syncUser(address);
+    }
+  }, [address, connected, hasSynced]);
 
   const getInitials = (addr: string): string => {
     return addr.slice(0, 2).toUpperCase();

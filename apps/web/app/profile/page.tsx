@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Copy,
   Edit,
@@ -12,6 +13,12 @@ import {
   Settings,
   Wallet,
   Plus,
+  Calendar,
+  Users,
+  ArrowRight,
+  Clock,
+  MapPin,
+  Award,
 } from "lucide-react";
 import {
   Card,
@@ -21,9 +28,44 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/shared/empty-state";
 import { disconnect, isConnected, getLocalStorage } from "@stacks/connect";
 
-type TabType = "general" | "wallets" | "notifications" | "privacy";
+type TabType = "general" | "wallets" | "notifications" | "privacy" | "events";
+
+interface HostedEvent {
+  id: string;
+  title: string;
+  description: string | null;
+  location: string | null;
+  startTime: string;
+  endTime: string;
+  bannerUrl: string | null;
+  isActive: boolean;
+  _count: {
+    claims: number;
+  };
+}
+
+interface ClaimedEvent {
+  id: string;
+  tokenId: string | null;
+  txId: string | null;
+  claimedAt: string;
+  event: HostedEvent & { hostId: string };
+}
+
+interface UserData {
+  id: string;
+  walletAddress: string;
+  username: string | null;
+  email: string | null;
+  bio: string | null;
+  avatarUrl: string | null;
+  hostedEvents: HostedEvent[];
+  claims: ClaimedEvent[];
+}
 
 interface ProfileState {
   displayName: string;
@@ -44,6 +86,8 @@ export default function ProfilePage() {
   const [connected, setConnected] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>("general");
   const [copied, setCopied] = useState(false);
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [loadingUserData, setLoadingUserData] = useState(false);
 
   // Profile state
   const [profile, setProfile] = useState<ProfileState>({
@@ -80,6 +124,31 @@ export default function ProfilePage() {
 
     checkConnection();
   }, [router]);
+
+  // Fetch user data when address is available
+  useEffect(() => {
+    if (!address) return;
+
+    const fetchUserData = async () => {
+      try {
+        setLoadingUserData(true);
+        const response = await fetch(`/api/user/${address}`);
+        if (!response.ok) throw new Error("Failed to fetch user data");
+        const data = await response.json();
+        setUserData(data);
+        // Populate profile fields from API
+        if (data.username)
+          setProfile((p) => ({ ...p, displayName: data.username }));
+        if (data.bio) setProfile((p) => ({ ...p, bio: data.bio }));
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      } finally {
+        setLoadingUserData(false);
+      }
+    };
+
+    fetchUserData();
+  }, [address]);
 
   const handleDisconnect = () => {
     disconnect();
@@ -202,6 +271,7 @@ export default function ProfilePage() {
             {(
               [
                 { id: "general", label: "General", icon: Settings },
+                { id: "events", label: "Events", icon: Calendar },
                 { id: "wallets", label: "Wallets", icon: Wallet },
                 { id: "notifications", label: "Notifications", icon: Bell },
                 { id: "privacy", label: "Privacy", icon: Lock },
@@ -310,6 +380,224 @@ export default function ProfilePage() {
                 </Button>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Events Tab */}
+        {activeTab === "events" && (
+          <div className="space-y-8">
+            {/* Hosted Events Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-foreground">
+                    Hosted Events
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Events you&apos;ve created and managed
+                  </p>
+                </div>
+                <Button asChild className="gap-2">
+                  <Link href="/create">
+                    <Plus className="h-4 w-4" />
+                    Create Event
+                  </Link>
+                </Button>
+              </div>
+
+              {loadingUserData ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {Array.from({ length: 3 }).map((_, idx) => (
+                    <Skeleton key={idx} className="h-64 rounded-2xl" />
+                  ))}
+                </div>
+              ) : userData?.hostedEvents && userData.hostedEvents.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {userData.hostedEvents.map((event) => (
+                    <Card
+                      key={event.id}
+                      className="border border-primary-dark/40 bg-gradient-to-br from-primary/5 via-background to-background hover:shadow-lg transition-shadow"
+                    >
+                      <div className="relative h-32 bg-gradient-to-br from-blue-600 via-purple-600 to-purple-800">
+                        {event.bannerUrl ? (
+                          <img
+                            src={event.bannerUrl}
+                            alt={event.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="absolute inset-0 opacity-25 bg-primary/40" />
+                        )}
+                        {event.isActive && (
+                          <div className="absolute top-3 right-3 flex items-center gap-1 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-semibold">
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                            </span>
+                            Active
+                          </div>
+                        )}
+                      </div>
+
+                      <CardContent className="space-y-3 p-5">
+                        <div>
+                          <h3 className="font-semibold text-foreground line-clamp-1">
+                            {event.title}
+                          </h3>
+                          <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                            {event.description || "No description"}
+                          </p>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
+                          {event.startTime && (
+                            <span className="inline-flex items-center gap-1">
+                              <Calendar className="h-4 w-4" />
+                              {new Date(event.startTime).toLocaleDateString()}
+                            </span>
+                          )}
+                          {event.location && (
+                            <span className="inline-flex items-center gap-1">
+                              <MapPin className="h-4 w-4" />
+                              {event.location}
+                            </span>
+                          )}
+                          <span className="inline-flex items-center gap-1">
+                            <Users className="h-4 w-4" />
+                            {event._count?.claims || 0} claims
+                          </span>
+                        </div>
+
+                        <Button
+                          asChild
+                          size="sm"
+                          variant="outline"
+                          className="w-full"
+                        >
+                          <Link href={`/events/${event.id}`}>
+                            View Details
+                            <ArrowRight className="h-4 w-4 ml-2" />
+                          </Link>
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  icon={Calendar}
+                  title="No hosted events yet"
+                  description="Create your first POAP event and start rewarding your community."
+                  actionLabel="Create Event"
+                  actionHref="/create"
+                />
+              )}
+            </div>
+
+            {/* Claimed Events Section */}
+            <div className="space-y-4 border-t pt-8">
+              <div>
+                <h2 className="text-2xl font-bold text-foreground">
+                  Claimed Badges
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Events you&apos;ve attended and claimed badges for
+                </p>
+              </div>
+
+              {loadingUserData ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {Array.from({ length: 3 }).map((_, idx) => (
+                    <Skeleton key={idx} className="h-64 rounded-2xl" />
+                  ))}
+                </div>
+              ) : userData?.claims && userData.claims.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {userData.claims.map((claim) => (
+                    <Card
+                      key={claim.id}
+                      className="border border-primary-dark/40 bg-gradient-to-br from-primary/5 via-background to-background hover:shadow-lg transition-shadow"
+                    >
+                      <CardHeader className="space-y-1 pb-3">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="line-clamp-1 text-base">
+                            {claim.event.title}
+                          </CardTitle>
+                        </div>
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {claim.event.description ||
+                            "On-chain proof of attendance"}
+                        </p>
+                      </CardHeader>
+
+                      <CardContent className="space-y-3">
+                        <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
+                          {claim.event.startTime && (
+                            <span className="inline-flex items-center gap-1">
+                              <Calendar className="h-4 w-4" />
+                              {new Date(
+                                claim.event.startTime
+                              ).toLocaleDateString()}
+                            </span>
+                          )}
+                          {claim.claimedAt && (
+                            <span className="inline-flex items-center gap-1">
+                              <Clock className="h-4 w-4" />
+                              Claimed{" "}
+                              {new Date(claim.claimedAt).toLocaleDateString()}
+                            </span>
+                          )}
+                          {claim.event.location && (
+                            <span className="inline-flex items-center gap-1">
+                              <MapPin className="h-4 w-4" />
+                              {claim.event.location}
+                            </span>
+                          )}
+                        </div>
+
+                        {claim.event.bannerUrl && (
+                          <div className="overflow-hidden rounded-lg">
+                            <img
+                              src={claim.event.bannerUrl}
+                              alt={claim.event.title}
+                              className="h-24 w-full object-cover"
+                            />
+                          </div>
+                        )}
+
+                        {claim.tokenId && (
+                          <div className="text-xs text-muted-foreground p-2 bg-muted rounded">
+                            <span className="font-mono">
+                              Token: {claim.tokenId}
+                            </span>
+                          </div>
+                        )}
+
+                        <Button
+                          asChild
+                          size="sm"
+                          variant="outline"
+                          className="w-full"
+                        >
+                          <Link href={`/events/${claim.event.id}`}>
+                            View Event
+                            <ArrowRight className="h-4 w-4 ml-2" />
+                          </Link>
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  icon={Award}
+                  title="No claimed badges yet"
+                  description="Explore events and claim your first POAP badge."
+                  actionLabel="Browse Events"
+                  actionHref="/events"
+                />
+              )}
+            </div>
           </div>
         )}
 
