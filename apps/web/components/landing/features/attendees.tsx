@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useEffect, useRef, useState } from "react";
 
 const attendeeHighlights = [
   {
@@ -22,6 +23,34 @@ const attendeeHighlights = [
 ];
 
 export function Attendees() {
+  const cardsRef = useRef<(HTMLDivElement | null)[]>([]);
+  const [isVisible, setIsVisible] = useState<boolean[]>([false, false]);
+
+  useEffect(() => {
+    const observers = cardsRef.current.map((card, index) => {
+      if (!card) return null;
+
+      const observer = new IntersectionObserver(
+        ([entry]) => {
+          setIsVisible((prev) => {
+            const newState = [...prev];
+            newState[index] = entry.isIntersecting;
+            return newState;
+          });
+        },
+        {
+          threshold: 0.1,
+        }
+      );
+
+      observer.observe(card);
+      return observer;
+    });
+
+    return () => {
+      observers.forEach((observer) => observer?.disconnect());
+    };
+  }, []);
   return (
     <section
       id="attendees"
@@ -39,10 +68,15 @@ export function Attendees() {
         </div>
 
         <div className="mt-12 grid gap-8 lg:gap-10 md:grid-cols-2 max-w-6xl mx-auto">
-          {attendeeHighlights.map((item) => (
+          {attendeeHighlights.map((item, index) => (
             <Card
+              ref={(el) => {
+                cardsRef.current[index] = el;
+              }}
               key={item.title}
-              className="relative overflow-hidden border border-primary-dark bg-gradient-to-br from-primary-dark via-background to-background rounded-4xl"
+              className={`relative overflow-hidden border border-primary-dark bg-gradient-to-br from-primary-dark via-background to-background rounded-4xl transition-opacity duration-700 ${
+                isVisible[index] ? "opacity-100" : "opacity-0"
+              }`}
             >
               <div className="pointer-events-none absolute inset-0" />
               <CardContent className="relative px-8 py-10">
