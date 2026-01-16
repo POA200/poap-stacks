@@ -267,7 +267,7 @@ export default function ProfilePage() {
       {/* Tabs */}
       <div className="border-b bg-background">
         <div className="container mx-auto px-4 max-w-6xl">
-          <div className="flex gap-8">
+          <div className="flex gap-2 md:gap-8 overflow-x-auto scrollbar-hide">
             {(
               [
                 { id: "general", label: "General", icon: Settings },
@@ -280,14 +280,15 @@ export default function ProfilePage() {
               <button
                 key={id}
                 onClick={() => setActiveTab(id)}
-                className={`flex items-center gap-2 px-4 py-4 text-sm font-medium border-b-2 transition-colors ${
+                className={`flex items-center gap-2 px-3 md:px-4 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex-shrink-0 ${
                   activeTab === id
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <Icon className="h-4 w-4" />
-                {label}
+                <span className="hidden sm:inline">{label}</span>
+                <span className="sm:hidden">{label}</span>
               </button>
             ))}
           </div>
