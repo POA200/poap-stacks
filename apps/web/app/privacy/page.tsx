@@ -218,7 +218,7 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-2xl font-semibold text-foreground mt-8 mb-4">
-              9. Children's Privacy
+              9. Children&apos;s Privacy
             </h2>
             <p>
               Our Service is not intended for children under 13 years of age (or

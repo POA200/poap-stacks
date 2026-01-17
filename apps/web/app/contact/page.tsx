@@ -62,7 +62,7 @@ export default function ContactPage() {
         <h1 className="text-4xl font-bold tracking-tight mb-4">Get in Touch</h1>
         <p className="text-lg text-muted-foreground">
           Have questions about POAP on Stacks? Want to collaborate or need
-          support? We'd love to hear from you.
+          support? We&apos;d love to hear from you.
         </p>
       </div>
 

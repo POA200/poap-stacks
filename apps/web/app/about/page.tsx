@@ -31,8 +31,8 @@ export default function AboutPage() {
           <p>
             By building on Stacks, we bring POAPs to the most secure and
             decentralized network in existence: Bitcoin. Stacks enables smart
-            contracts on Bitcoin without compromising the base layer's security
-            or requiring changes to Bitcoin itself.
+            contracts on Bitcoin without compromising the base layer&apos;s
+            security or requiring changes to Bitcoin itself.
           </p>
           <p>
             This means your attendance badges benefit from Bitcoin&apos;s
