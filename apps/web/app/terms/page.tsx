@@ -15,10 +15,10 @@ export default function TermsPage() {
               1. Acceptance of Terms
             </h2>
             <p>
-              By accessing or using POAP on Stacks (&quot;the Service&quot;), you agree
-              to be bound by these Terms of Service and all applicable laws and
-              regulations. If you do not agree with any part of these terms, you
-              may not use the Service.
+              By accessing or using POAP on Stacks (&quot;the Service&quot;),
+              you agree to be bound by these Terms of Service and all applicable
+              laws and regulations. If you do not agree with any part of these
+              terms, you may not use the Service.
             </p>
           </section>
 
@@ -126,11 +126,12 @@ export default function TermsPage() {
               7. Disclaimer of Warranties
             </h2>
             <p>
-              THE SERVICE IS PROVIDED &quot;AS IS&quot; AND &quot;AS AVAILABLE&quot; WITHOUT
-              WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED. We do not
-              guarantee that the Service will be uninterrupted, secure, or
-              error-free. We do not warrant the accuracy or reliability of any
-              content or smart contracts deployed on the blockchain.
+              THE SERVICE IS PROVIDED &quot;AS IS&quot; AND &quot;AS
+              AVAILABLE&quot; WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR
+              IMPLIED. We do not guarantee that the Service will be
+              uninterrupted, secure, or error-free. We do not warrant the
+              accuracy or reliability of any content or smart contracts deployed
+              on the blockchain.
             </p>
           </section>
 
@@ -143,10 +144,10 @@ export default function TermsPage() {
               operators shall not be liable for any indirect, incidental,
               special, consequential, or punitive damages, including loss of
               profits, data, or other intangible losses resulting from:
-            <p>
-              If you have any questions about these Terms of Service, please
-              contact us through our contact page.
             </p>
+            <ul className="list-disc pl-6 space-y-2 mt-3">
+              <li>Your use or inability to use the Service</li>
+              <li>
                 Unauthorized access to or alteration of your transmissions or
                 data
               </li>
