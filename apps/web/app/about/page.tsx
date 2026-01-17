@@ -18,10 +18,11 @@ export default function AboutPage() {
           </h2>
           <p>
             POAP (Proof of Attendance Protocol) represents a revolutionary way
-            to bookmark life's moments. These aren't just NFTs — they're digital
-            mementos that prove "I was there." Whether it's a conference,
-            concert, community meetup, or virtual workshop, POAPs serve as your
-            personal time capsule of experiences.
+            to bookmark life&apos;s moments. These aren&apos;t just NFTs —
+            they&apos;re digital mementos that prove &quot;I was there.&quot;
+            Whether it&apos;s a conference, concert, community meetup, or
+            virtual workshop, POAPs serve as your personal time capsule of
+            experiences.
           </p>
 
           <h2 className="text-2xl font-semibold text-foreground mt-8 mb-4">
@@ -34,10 +35,10 @@ export default function AboutPage() {
             or requiring changes to Bitcoin itself.
           </p>
           <p>
-            This means your attendance badges benefit from Bitcoin's
+            This means your attendance badges benefit from Bitcoin&apos;s
             unparalleled security while leveraging Clarity smart contracts for
-            predictable, safe transactions. Your memories aren't just stored —
-            they're <em>secured by Bitcoin</em>.
+            predictable, safe transactions. Your memories aren&apos;t just
+            stored — they&apos;re <em>secured by Bitcoin</em>.
           </p>
 
           <h2 className="text-2xl font-semibold text-foreground mt-8 mb-4">
@@ -52,20 +53,21 @@ export default function AboutPage() {
           <p>
             POAP on Stacks empowers event organizers to create meaningful
             digital artifacts that attendees can collect, showcase, and
-            treasure. It's not about speculation — it's about celebration.
+            treasure. It&apos;s not about speculation — it&apos;s about
+            celebration.
           </p>
 
           <h2 className="text-2xl font-semibold text-foreground mt-8 mb-4">
             The Bitcoin Standard for Memories
           </h2>
           <p>
-            Just as Bitcoin represents sound money, we're building sound
+            Just as Bitcoin represents sound money, we&apos;re building sound
             memories. Each POAP badge is:
           </p>
           <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
             <li>
               <strong className="text-foreground">Immutable</strong> — Your
-              attendance record can't be altered or erased
+              attendance record can&apos;t be altered or erased
             </li>
             <li>
               <strong className="text-foreground">Provable</strong> —
@@ -77,7 +79,7 @@ export default function AboutPage() {
             </li>
             <li>
               <strong className="text-foreground">Secured</strong> — Protected
-              by Bitcoin's hash power
+              by Bitcoin&apos;s hash power
             </li>
           </ul>
 
@@ -85,15 +87,15 @@ export default function AboutPage() {
             Join the Movement
           </h2>
           <p>
-            Whether you're an event organizer looking to reward your community
-            or an attendee eager to collect proof of your journey, POAP on
-            Stacks is your gateway to Web3 reputation and verifiable
+            Whether you&apos;re an event organizer looking to reward your
+            community or an attendee eager to collect proof of your journey,
+            POAP on Stacks is your gateway to Web3 reputation and verifiable
             participation.
           </p>
           <p>
-            Let's build a world where experiences matter, communities thrive,
-            and every moment is preserved on the strongest foundation in crypto
-            — Bitcoin.
+            Let&apos;s build a world where experiences matter, communities
+            thrive, and every moment is preserved on the strongest foundation in
+            crypto — Bitcoin.
           </p>
 
           <div className="mt-12 pt-8 border-t border-border">

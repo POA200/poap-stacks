@@ -15,11 +15,11 @@ export default function PrivacyPage() {
               1. Introduction
             </h2>
             <p>
-              POAP on Stacks ("we," "our," or "us") is committed to protecting
-              your privacy. This Privacy Policy explains how we collect, use,
-              disclose, and safeguard your information when you use our
-              decentralized application and services. Please read this policy
-              carefully.
+              POAP on Stacks (&quot;we,&quot; &quot;our,&quot; or
+              &quot;us&quot;) is committed to protecting your privacy. This
+              Privacy Policy explains how we collect, use, disclose, and
+              safeguard your information when you use our decentralized
+              application and services. Please read this policy carefully.
             </p>
           </section>
 
@@ -259,9 +259,9 @@ export default function PrivacyPage() {
             </h2>
             <p>
               We may update this Privacy Policy from time to time. Changes will
-              be posted on this page with an updated "Last Updated" date. Your
-              continued use of the Service after changes constitutes acceptance
-              of the updated policy.
+              be posted on this page with an updated &quot;Last Updated&quot;
+              date. Your continued use of the Service after changes constitutes
+              acceptance of the updated policy.
             </p>
           </section>
 
