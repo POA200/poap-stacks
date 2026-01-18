@@ -323,7 +323,11 @@ export default function ProfilePage() {
     return null;
   }
 
-  const displayName = username || "Anonymous Collector";
+  const getDefaultUsername = (addr: string): string => {
+    return `User-${addr.slice(-4)}`;
+  };
+
+  const displayName = username || getDefaultUsername(address);
   const displayAvatar = avatarUrl;
 
   return (

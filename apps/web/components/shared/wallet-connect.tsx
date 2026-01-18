@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Wallet } from "lucide-react";
@@ -7,12 +8,19 @@ import { Button } from "@/components/ui/button";
 // Note: avoid top-level import of `@stacks/connect` to prevent
 // provider injection races with wallet extensions in dev.
 
+interface UserProfile {
+  username: string | null;
+  avatarUrl: string | null;
+}
+
 export default function WalletConnect() {
   const router = useRouter();
   const [connected, setConnected] = useState(false);
   const [address, setAddress] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [hasSynced, setHasSynced] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(false);
 
   const syncUser = async (walletAddress: string) => {
     try {
@@ -24,6 +32,24 @@ export default function WalletConnect() {
       setHasSynced(true);
     } catch (error) {
       console.error("Failed to sync user:", error);
+    }
+  };
+
+  const fetchUserProfile = async (walletAddress: string) => {
+    try {
+      setLoadingProfile(true);
+      const response = await fetch(`/api/user/${walletAddress}`);
+      if (response.ok) {
+        const data = await response.json();
+        setUserProfile({
+          username: data.username,
+          avatarUrl: data.avatarUrl,
+        });
+      }
+    } catch (error) {
+      console.error("Failed to fetch user profile:", error);
+    } finally {
+      setLoadingProfile(false);
     }
   };
 
@@ -85,6 +111,12 @@ export default function WalletConnect() {
     }
   }, [address, connected, hasSynced]);
 
+  useEffect(() => {
+    if (address && connected) {
+      fetchUserProfile(address);
+    }
+  }, [address, connected]);
+
   const getInitials = (addr: string): string => {
     return addr.slice(0, 2).toUpperCase();
   };
@@ -93,18 +125,43 @@ export default function WalletConnect() {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
 
+  const getDefaultUsername = (addr: string): string => {
+    return `User-${addr.slice(-4)}`;
+  };
+
   if (connected && address) {
+    const displayUsername =
+      userProfile?.username || getDefaultUsername(address);
+    const displayAvatar = userProfile?.avatarUrl;
+
     return (
       <Button
         size="lg"
         variant="ghost"
-        className="px-3 gap-2 cursor-pointer"
+        className="px-2 gap-3 cursor-pointer h-auto py-1.5"
         onClick={handleProfileClick}
       >
-        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary text-xs font-semibold">
-          {getInitials(address)}
+        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10 text-primary text-xs font-semibold flex-shrink-0 overflow-hidden">
+          {displayAvatar ? (
+            <Image
+              src={displayAvatar}
+              alt={displayUsername}
+              width={40}
+              height={40}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            getInitials(address)
+          )}
         </div>
-        <span className="hidden sm:inline">{getSlicedAddress(address)}</span>
+        <div className="hidden sm:flex flex-col items-start">
+          <span className="text-sm font-medium leading-tight">
+            {displayUsername}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {getSlicedAddress(address)}
+          </span>
+        </div>
       </Button>
     );
   }
