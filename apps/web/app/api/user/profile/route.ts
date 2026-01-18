@@ -22,16 +22,17 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Prepare update data
-    const updateData: {
-      username?: string;
-      bio?: string;
-      avatarUrl?: string;
-      email?: string;
-    } = {};
+    // Prepare update data with proper typing
+    type UpdateData = {
+      username?: string | null;
+      bio?: string | null;
+      avatarUrl?: string | null;
+      email?: string | null;
+    };
+    const updateData: UpdateData = {};
 
     if (body.username !== undefined) {
-      const trimmedUsername = body.username?.trim();
+      const trimmedUsername = body.username?.trim() || null;
       if (trimmedUsername) {
         // Check if username is already taken by another user
         const existingUsername = await prisma.user.findUnique({
@@ -46,20 +47,20 @@ export async function PATCH(request: NextRequest) {
         }
         updateData.username = trimmedUsername;
       } else {
-        updateData.username = null as any; // Allow clearing username
+        updateData.username = null;
       }
     }
 
     if (body.bio !== undefined) {
-      updateData.bio = body.bio?.trim() || null as any;
+      updateData.bio = body.bio?.trim() || null;
     }
 
     if (body.avatarUrl !== undefined) {
-      updateData.avatarUrl = body.avatarUrl?.trim() || null as any;
+      updateData.avatarUrl = body.avatarUrl?.trim() || null;
     }
 
     if (body.email !== undefined) {
-      const trimmedEmail = body.email?.trim();
+      const trimmedEmail = body.email?.trim() || null;
       if (trimmedEmail) {
         // Basic email validation
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -83,7 +84,7 @@ export async function PATCH(request: NextRequest) {
         }
         updateData.email = trimmedEmail;
       } else {
-        updateData.email = null as any; // Allow clearing email
+        updateData.email = null;
       }
     }
 

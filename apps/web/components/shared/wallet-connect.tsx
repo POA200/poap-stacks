@@ -20,7 +20,6 @@ export default function WalletConnect() {
   const [isLoading, setIsLoading] = useState(false);
   const [hasSynced, setHasSynced] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [loadingProfile, setLoadingProfile] = useState(false);
 
   const syncUser = async (walletAddress: string) => {
     try {
@@ -37,7 +36,6 @@ export default function WalletConnect() {
 
   const fetchUserProfile = async (walletAddress: string) => {
     try {
-      setLoadingProfile(true);
       const response = await fetch(`/api/user/${walletAddress}`);
       if (response.ok) {
         const data = await response.json();
@@ -48,8 +46,6 @@ export default function WalletConnect() {
       }
     } catch (error) {
       console.error("Failed to fetch user profile:", error);
-    } finally {
-      setLoadingProfile(false);
     }
   };
 

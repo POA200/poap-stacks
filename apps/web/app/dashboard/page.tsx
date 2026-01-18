@@ -3,16 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  Plus,
-  Eye,
-  Settings,
-  TrendingUp,
-  Clock,
-  MoreVertical,
-  Users,
-  Loader2,
-} from "lucide-react";
+import { Plus, Eye, Settings, Clock, MoreVertical, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -57,7 +48,6 @@ interface UserData {
 }
 
 export default function DashboardPage() {
-  const router = useRouter();
   const [connected, setConnected] = useState(false);
   const [address, setAddress] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
