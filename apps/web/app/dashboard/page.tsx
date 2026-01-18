@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Plus,
   Eye,
@@ -10,6 +11,7 @@ import {
   Clock,
   MoreVertical,
   Users,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,98 +28,131 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/shared/empty-state";
+import { isConnected, getLocalStorage } from "@stacks/connect";
+import { toast } from "sonner";
 
-interface CreatedEvent {
+interface HostedEvent {
   id: string;
   title: string;
-  date: string;
-  status: "live" | "upcoming" | "past";
-  totalClaims: number;
-  totalSupply: number;
-  claimRate: number;
-  uniqueVisitors: number;
+  description: string | null;
+  location: string | null;
+  startTime: string;
+  endTime: string;
+  bannerUrl: string | null;
+  maxAttendees: number | null;
+  isActive: boolean;
   createdAt: string;
+  _count: {
+    claims: number;
+  };
+}
+
+interface UserData {
+  id: string;
+  walletAddress: string;
+  username: string | null;
+  hostedEvents: HostedEvent[];
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [connected, setConnected] = useState(false);
+  const [address, setAddress] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [userData, setUserData] = useState<UserData | null>(null);
 
   useEffect(() => {
-    const checkConnection = async () => {
-      try {
-        const stacksConnect = await import("@stacks/connect").catch(() => null);
-        if (!stacksConnect) return;
+    const checkConnection = () => {
+      const isWalletConnected = isConnected();
+      setConnected(isWalletConnected);
 
-        const { isConnected } = stacksConnect;
-        const isWalletConnected = isConnected();
-
-        if (isWalletConnected) {
-          setConnected(true);
-        }
-      } catch {
-        // Silently fail
+      if (isWalletConnected) {
+        const data = getLocalStorage();
+        const stxAddress = data?.addresses?.stx?.[0]?.address;
+        setAddress(stxAddress || null);
+      } else {
+        setLoading(false);
       }
     };
 
     checkConnection();
   }, []);
 
-  // Mock data - events created by the user
-  const createdEvents: CreatedEvent[] = [
-    {
-      id: "featured-1",
-      title: "Stacks Defi Show #80",
-      date: "Jan 12, 2026",
-      status: "live",
-      totalClaims: 45,
-      totalSupply: 100,
-      claimRate: 45,
-      uniqueVisitors: 234,
-      createdAt: "Jan 10, 2026",
-    },
-    {
-      id: "upcoming-1",
-      title: "Bitcoin L2 Conference",
-      date: "Jan 20, 2026",
-      status: "upcoming",
-      totalClaims: 0,
-      totalSupply: 150,
-      claimRate: 0,
-      uniqueVisitors: 412,
-      createdAt: "Jan 8, 2026",
-    },
-    {
-      id: "upcoming-2",
-      title: "DeFi Summit 2026",
-      date: "Feb 15, 2026",
-      status: "upcoming",
-      totalClaims: 0,
-      totalSupply: 200,
-      claimRate: 0,
-      uniqueVisitors: 1230,
-      createdAt: "Jan 5, 2026",
-    },
-    {
-      id: "past-1",
-      title: "Stacks Defi Show #79",
-      date: "Jan 5, 2026",
-      status: "past",
-      totalClaims: 87,
-      totalSupply: 100,
-      claimRate: 87,
-      uniqueVisitors: 156,
-      createdAt: "Jan 3, 2026",
-    },
-  ];
+  useEffect(() => {
+    if (!address) return;
+
+    const fetchUserData = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`/api/user/${address}`);
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            // User doesn't exist, create one
+            await fetch("/api/user", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ walletAddress: address }),
+            });
+            // Fetch again
+            const retryResponse = await fetch(`/api/user/${address}`);
+            if (retryResponse.ok) {
+              const data = await retryResponse.json();
+              setUserData(data);
+            }
+          } else {
+            throw new Error("Failed to fetch user data");
+          }
+        } else {
+          const data = await response.json();
+          setUserData(data);
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+        toast.error("Failed to load dashboard data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [address]);
+
+  const getEventStatus = (event: HostedEvent): "live" | "upcoming" | "past" => {
+    const now = new Date();
+    const startTime = new Date(event.startTime);
+    const endTime = new Date(event.endTime);
+
+    if (now >= startTime && now <= endTime && event.isActive) {
+      return "live";
+    } else if (now < startTime) {
+      return "upcoming";
+    } else {
+      return "past";
+    }
+  };
+
+  const createdEvents = userData?.hostedEvents || [];
 
   const stats = {
     totalEvents: createdEvents.length,
-    liveEvents: createdEvents.filter((e) => e.status === "live").length,
-    totalClaims: createdEvents.reduce((sum, e) => sum + e.totalClaims, 0),
-    totalVisitors: createdEvents.reduce((sum, e) => sum + e.uniqueVisitors, 0),
+    liveEvents: createdEvents.filter((e) => getEventStatus(e) === "live")
+      .length,
+    totalClaims: createdEvents.reduce((sum, e) => sum + e._count.claims, 0),
+    avgClaimRate:
+      createdEvents.length > 0
+        ? Math.round(
+            createdEvents.reduce((sum, e) => {
+              const maxAttendees = e.maxAttendees || 100;
+              return sum + (e._count.claims / maxAttendees) * 100;
+            }, 0) / createdEvents.length,
+          )
+        : 0,
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: "live" | "upcoming" | "past") => {
     switch (status) {
       case "live":
         return (
@@ -141,9 +176,15 @@ export default function DashboardPage() {
             Completed
           </Badge>
         );
-      default:
-        return null;
     }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
   };
 
   if (!connected) {
@@ -155,8 +196,27 @@ export default function DashboardPage() {
             You need to connect your wallet to view your event dashboard.
           </p>
           <Button size="lg" asChild>
-            <Link href="/events">Return to Events</Link>
+            <Link href="/">Go Home</Link>
           </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-8 max-w-7xl">
+          <div className="mb-8">
+            <Skeleton className="h-10 w-64 mb-2" />
+            <Skeleton className="h-5 w-96" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-32" />
+            ))}
+          </div>
+          <Skeleton className="h-96" />
         </div>
       </div>
     );
@@ -214,15 +274,14 @@ export default function DashboardPage() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Unique Visitors
+                Total Attendees
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{stats.totalVisitors}</div>
-              <div className="flex items-center gap-1 mt-1">
-                <TrendingUp className="h-3 w-3 text-green-500" />
-                <p className="text-xs text-green-500">+28% this week</p>
-              </div>
+              <div className="text-3xl font-bold">{stats.totalClaims}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                unique collectors
+              </p>
             </CardContent>
           </Card>
 
@@ -233,13 +292,7 @@ export default function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">
-                {Math.round(
-                  createdEvents.reduce((sum, e) => sum + e.claimRate, 0) /
-                    createdEvents.length
-                )}
-                %
-              </div>
+              <div className="text-3xl font-bold">{stats.avgClaimRate}%</div>
               <p className="text-xs text-muted-foreground mt-1">
                 across events
               </p>
@@ -256,74 +309,91 @@ export default function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {createdEvents.map((event) => (
-                <div
-                  key={event.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="font-semibold text-foreground">
-                        {event.title}
-                      </h3>
-                      {getStatusBadge(event.status)}
-                    </div>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3.5 w-3.5" />
-                        {event.date}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Users className="h-3.5 w-3.5" />
-                        {event.totalClaims} / {event.totalSupply} claims
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Eye className="h-3.5 w-3.5" />
-                        {event.uniqueVisitors} visitors
-                      </div>
-                    </div>
-                  </div>
+            {createdEvents.length === 0 ? (
+              <EmptyState
+                icon={Plus}
+                title="No events yet"
+                description="Create your first POAP event to start building your community."
+                actionLabel="Create Event"
+                actionHref="/create"
+              />
+            ) : (
+              <div className="space-y-4">
+                {createdEvents.map((event) => {
+                  const status = getEventStatus(event);
+                  const maxAttendees = event.maxAttendees || 100;
 
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href={`/events/${event.id}`}>
-                        <Eye className="h-4 w-4" />
-                      </Link>
-                    </Button>
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href={`/events/${event.id}/manage`}>
-                        <Settings className="h-4 w-4" />
-                      </Link>
-                    </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem asChild>
+                  return (
+                    <div
+                      key={event.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="font-semibold text-foreground">
+                            {event.title}
+                          </h3>
+                          {getStatusBadge(status)}
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-3.5 w-3.5" />
+                            {formatDate(event.startTime)}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Users className="h-3.5 w-3.5" />
+                            {event._count.claims} / {maxAttendees} claims
+                          </div>
+                          {event.location && (
+                            <div className="flex items-center gap-1">
+                              <Eye className="h-3.5 w-3.5" />
+                              {event.location}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" asChild>
                           <Link href={`/events/${event.id}`}>
-                            View Public Page
+                            <Eye className="h-4 w-4" />
                           </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
+                        </Button>
+                        <Button variant="outline" size="sm" asChild>
                           <Link href={`/events/${event.id}/manage`}>
-                            Manage Event
+                            <Settings className="h-4 w-4" />
                           </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>Edit Details</DropdownMenuItem>
-                        <DropdownMenuItem>Duplicate Event</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">
-                          Delete Event
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-              ))}
-            </div>
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem asChild>
+                              <Link href={`/events/${event.id}`}>
+                                View Public Page
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <Link href={`/events/${event.id}/manage`}>
+                                Manage Event
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem>Edit Details</DropdownMenuItem>
+                            <DropdownMenuItem>Duplicate Event</DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive">
+                              Delete Event
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
 

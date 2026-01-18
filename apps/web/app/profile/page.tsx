@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -19,6 +19,8 @@ import {
   Clock,
   MapPin,
   Award,
+  Upload,
+  Loader2,
 } from "lucide-react";
 import {
   Card,
@@ -31,6 +33,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { disconnect, isConnected, getLocalStorage } from "@stacks/connect";
+import { toast } from "sonner";
 
 type TabType = "general" | "wallets" | "notifications" | "privacy" | "events";
 
@@ -67,12 +70,6 @@ interface UserData {
   claims: ClaimedEvent[];
 }
 
-interface ProfileState {
-  displayName: string;
-  bio: string;
-  bnsName: string;
-}
-
 interface NotificationPreferences {
   claimSuccess: boolean;
   newAirdrops: boolean;
@@ -82,19 +79,21 @@ interface NotificationPreferences {
 
 export default function ProfilePage() {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [address, setAddress] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>("general");
   const [copied, setCopied] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loadingUserData, setLoadingUserData] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
 
-  // Profile state
-  const [profile, setProfile] = useState<ProfileState>({
-    displayName: "Anonymous Collector",
-    bio: "",
-    bnsName: "",
-  });
+  // Profile state - separate from userData for editing
+  const [username, setUsername] = useState("");
+  const [bio, setBio] = useState("");
+  const [email, setEmail] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [profileEdited, setProfileEdited] = useState(false);
 
   // Notification state
@@ -133,15 +132,30 @@ export default function ProfilePage() {
       try {
         setLoadingUserData(true);
         const response = await fetch(`/api/user/${address}`);
-        if (!response.ok) throw new Error("Failed to fetch user data");
-        const data = await response.json();
-        setUserData(data);
-        // Populate profile fields from API
-        if (data.username)
-          setProfile((p) => ({ ...p, displayName: data.username }));
-        if (data.bio) setProfile((p) => ({ ...p, bio: data.bio }));
+        if (!response.ok) {
+          // User doesn't exist yet, create one
+          if (response.status === 404) {
+            await fetch("/api/user", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ walletAddress: address }),
+            });
+            // Fetch again
+            const retryResponse = await fetch(`/api/user/${address}`);
+            if (retryResponse.ok) {
+              const data = await retryResponse.json();
+              setUserData(data);
+              populateFormFields(data);
+            }
+          }
+        } else {
+          const data = await response.json();
+          setUserData(data);
+          populateFormFields(data);
+        }
       } catch (error) {
         console.error("Error fetching user data:", error);
+        toast.error("Failed to load profile data");
       } finally {
         setLoadingUserData(false);
       }
@@ -149,6 +163,24 @@ export default function ProfilePage() {
 
     fetchUserData();
   }, [address]);
+
+  const populateFormFields = (data: UserData) => {
+    setUsername(data.username || "");
+    setBio(data.bio || "");
+    setEmail(data.email || "");
+    setAvatarUrl(data.avatarUrl || "");
+  };
+
+  // Track if form fields have been edited
+  useEffect(() => {
+    if (!userData) return;
+    const hasChanges =
+      username !== (userData.username || "") ||
+      bio !== (userData.bio || "") ||
+      email !== (userData.email || "") ||
+      avatarUrl !== (userData.avatarUrl || "");
+    setProfileEdited(hasChanges);
+  }, [username, bio, email, avatarUrl, userData]);
 
   const handleDisconnect = () => {
     disconnect();
@@ -169,17 +201,96 @@ export default function ProfilePage() {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
 
-  const handleProfileChange = (field: keyof ProfileState, value: string) => {
-    setProfile((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-    setProfileEdited(true);
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
   };
 
-  const handleSaveProfile = () => {
-    // TODO: Persist profile to backend/storage
-    setProfileEdited(false);
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File size must be less than 5MB");
+      return;
+    }
+
+    // Validate file type
+    const allowedTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+    ];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Only JPEG, PNG, GIF, and WebP images are allowed");
+      return;
+    }
+
+    try {
+      setUploadingAvatar(true);
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/user/avatar", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to upload avatar");
+      }
+
+      const data = await response.json();
+      setAvatarUrl(data.url);
+      toast.success("Avatar uploaded successfully!");
+    } catch (error) {
+      console.error("Error uploading avatar:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to upload avatar",
+      );
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!address) return;
+
+    try {
+      setSavingProfile(true);
+      const response = await fetch("/api/user/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          walletAddress: address,
+          username: username || null,
+          bio: bio || null,
+          email: email || null,
+          avatarUrl: avatarUrl || null,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to update profile");
+      }
+
+      const updatedData = await response.json();
+      setUserData(updatedData);
+      populateFormFields(updatedData);
+      setProfileEdited(false);
+      toast.success("Profile updated successfully!");
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update profile",
+      );
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
   const handleNotificationChange = (key: keyof NotificationPreferences) => {
@@ -187,14 +298,16 @@ export default function ProfilePage() {
       ...prev,
       [key]: !prev[key],
     }));
+    // TODO: Persist to backend
+    toast.success("Notification preferences updated");
   };
 
   const handleExportHistory = () => {
-    // TODO: Implement export functionality
     const data = {
       address,
       exportedAt: new Date().toISOString(),
-      eventHistory: [],
+      hostedEvents: userData?.hostedEvents || [],
+      claimedEvents: userData?.claims || [],
     };
     const json = JSON.stringify(data, null, 2);
     const blob = new Blob([json], { type: "application/json" });
@@ -203,32 +316,62 @@ export default function ProfilePage() {
     a.href = url;
     a.download = `poap-history-${address?.slice(-4)}.json`;
     a.click();
+    toast.success("History exported successfully");
   };
 
   if (!connected || !address) {
     return null;
   }
 
+  const displayName = username || "Anonymous Collector";
+  const displayAvatar = avatarUrl;
+
   return (
     <div className="min-h-screen bg-background">
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+
       {/* Profile Header */}
       <div className="border-b bg-card">
         <div className="container mx-auto px-4 py-6 max-w-6xl">
           <div className="flex items-center justify-between gap-6">
             {/* Left: Avatar */}
             <div className="relative flex-shrink-0">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center text-white text-2xl font-bold">
-                {profile.displayName.charAt(0).toUpperCase()}
-              </div>
-              <button className="absolute bottom-0 right-0 p-2 rounded-full bg-primary text-white hover:bg-primary/90 transition-colors">
-                <Edit className="h-4 w-4" />
+              {displayAvatar ? (
+                <img
+                  src={displayAvatar}
+                  alt={displayName}
+                  className="w-20 h-20 rounded-full object-cover border-2 border-primary/20"
+                />
+              ) : (
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center text-white text-2xl font-bold">
+                  {displayName.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <button
+                onClick={handleAvatarClick}
+                disabled={uploadingAvatar}
+                className="absolute bottom-0 right-0 p-2 rounded-full bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50"
+                title="Change avatar"
+              >
+                {uploadingAvatar ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4" />
+                )}
               </button>
             </div>
 
             {/* Center: User Info */}
             <div className="flex-1 min-w-0">
               <h2 className="text-2xl font-bold text-foreground">
-                {profile.displayName}
+                {displayName}
               </h2>
               <div className="flex items-center gap-2 mt-1">
                 <code className="text-sm font-mono text-muted-foreground">
@@ -308,20 +451,39 @@ export default function ProfilePage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Display Name */}
+                {/* Username */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">
-                    Display Name
+                    Username
                   </label>
                   <input
                     type="text"
-                    value={profile.displayName}
-                    onChange={(e) =>
-                      handleProfileChange("displayName", e.target.value)
-                    }
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                     className="w-full px-3 py-2 border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                    placeholder="Your display name"
+                    placeholder="Your username"
+                    maxLength={50}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    This will be your public display name
+                  </p>
+                </div>
+
+                {/* Email */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">
+                    Email (Optional)
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    placeholder="your.email@example.com"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Used for notifications and updates
+                  </p>
                 </div>
 
                 {/* Bio */}
@@ -331,14 +493,14 @@ export default function ProfilePage() {
                       Bio
                     </label>
                     <span className="text-xs text-muted-foreground">
-                      {profile.bio.length}/160
+                      {bio.length}/160
                     </span>
                   </div>
                   <textarea
-                    value={profile.bio}
+                    value={bio}
                     onChange={(e) => {
                       const value = e.target.value.slice(0, 160);
-                      handleProfileChange("bio", value);
+                      setBio(value);
                     }}
                     maxLength={160}
                     rows={3}
@@ -347,27 +509,25 @@ export default function ProfilePage() {
                   />
                 </div>
 
-                {/* BNS Name */}
+                {/* Wallet Address (Read-only) */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">
-                    Stacks Name
+                    Wallet Address
                   </label>
                   <div className="flex items-center gap-2">
                     <input
                       type="text"
-                      value={profile.bnsName}
+                      value={address || ""}
                       readOnly
-                      className="flex-1 px-3 py-2 border rounded-md bg-muted text-foreground cursor-not-allowed"
-                      placeholder="Not set"
+                      className="flex-1 px-3 py-2 border rounded-md bg-muted text-foreground font-mono text-sm cursor-not-allowed"
                     />
-                    <a
-                      href="https://www.stacks.co/bns"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm font-medium text-primary hover:underline"
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCopyAddress}
                     >
-                      Manage BNS
-                    </a>
+                      <Copy className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               </CardContent>
@@ -375,9 +535,30 @@ export default function ProfilePage() {
 
             {/* Save Button */}
             {profileEdited && (
-              <div className="flex justify-end">
-                <Button onClick={handleSaveProfile} size="lg">
-                  Save Changes
+              <div className="flex justify-end gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    if (userData) populateFormFields(userData);
+                    setProfileEdited(false);
+                  }}
+                  disabled={savingProfile}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveProfile}
+                  disabled={savingProfile}
+                  className="gap-2"
+                >
+                  {savingProfile ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
                 </Button>
               </div>
             )}
@@ -537,7 +718,7 @@ export default function ProfilePage() {
                             <span className="inline-flex items-center gap-1">
                               <Calendar className="h-4 w-4" />
                               {new Date(
-                                claim.event.startTime
+                                claim.event.startTime,
                               ).toLocaleDateString()}
                             </span>
                           )}
