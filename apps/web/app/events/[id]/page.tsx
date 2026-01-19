@@ -87,36 +87,40 @@ export default function EventPage({ params }: EventPageProps) {
       setClaimStatus("checking");
       setProgress(20);
 
-      // Simulate checking eligibility
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Check if user has already claimed
+      const { hasClaimedBadge } = await import("@/lib/contract-calls");
+      const claimed = await hasClaimedBadge(parseInt(eventId), walletAddress);
 
-      // TODO: Check if user is eligible and hasn't claimed
-      // const isEligible = await checkEligibility(walletAddress, eventId);
-      // if (!isEligible) {
-      //   setClaimStatus("not-eligible");
-      //   return;
-      // }
+      if (claimed.value === true) {
+        setClaimStatus("already-claimed");
+        return;
+      }
 
       setProgress(40);
       setClaimStatus("claiming");
 
-      // Simulate blockchain transaction
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      setProgress(70);
-
-      // TODO: Actual blockchain interaction
-      // const { openContractCall } = await import("@stacks/connect");
-      // const transaction = await openContractCall({...});
-
-      // Simulate transaction success
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      setProgress(100);
-      setTxId("0x" + Math.random().toString(16).substring(2, 42));
-
-      setClaimStatus("success");
-    } catch {
+      // Call smart contract to claim badge
+      const { claimBadge } = await import("@/lib/contract-calls");
+      await claimBadge({
+        eventId: parseInt(eventId),
+        onFinish: (data) => {
+          setProgress(100);
+          setTxId(data.txId);
+          setClaimStatus("success");
+        },
+        onCancel: () => {
+          setClaimStatus("idle");
+          setProgress(0);
+          setErrorMessage("Transaction cancelled by user");
+        },
+      });
+    } catch (error) {
       setClaimStatus("error");
-      setErrorMessage("Failed to claim badge. Please try again.");
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Failed to claim badge. Please try again.",
+      );
       setProgress(0);
     }
   };
@@ -519,24 +523,48 @@ export default function EventPage({ params }: EventPageProps) {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                <div className="flex items-center justify-between py-2 border-b">
-                  <span className="font-mono text-xs">
-                    SP2J6ZY48...KNRV9EJ7
-                  </span>
-                  <span className="text-xs text-muted-foreground">2h ago</span>
-                </div>
-                <div className="flex items-center justify-between py-2 border-b">
-                  <span className="font-mono text-xs">
-                    SP3FBR2AG...8DVTEC6E
-                  </span>
-                  <span className="text-xs text-muted-foreground">5h ago</span>
-                </div>
-                <div className="flex items-center justify-between py-2">
-                  <span className="font-mono text-xs">
-                    SP1HJQR4K...2YWPJV7M
-                  </span>
-                  <span className="text-xs text-muted-foreground">1d ago</span>
-                </div>
+                <Button
+                  asChild
+                  variant="ghost"
+                  className="w-full justify-between py-2 h-auto px-2 border-b rounded-none hover:bg-muted/50"
+                >
+                  <Link href="/profile/SP2J6ZY48KNRV9EJ7">
+                    <span className="font-mono text-xs">
+                      SP2J6ZY48...KNRV9EJ7
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      2h ago
+                    </span>
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="ghost"
+                  className="w-full justify-between py-2 h-auto px-2 border-b rounded-none hover:bg-muted/50"
+                >
+                  <Link href="/profile/SP3FBR2AG8DVTEC6E">
+                    <span className="font-mono text-xs">
+                      SP3FBR2AG...8DVTEC6E
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      5h ago
+                    </span>
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="ghost"
+                  className="w-full justify-between py-2 h-auto px-2 rounded-none hover:bg-muted/50"
+                >
+                  <Link href="/profile/SP1HJQR4K2YWPJV7M">
+                    <span className="font-mono text-xs">
+                      SP1HJQR4K...2YWPJV7M
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      1d ago
+                    </span>
+                  </Link>
+                </Button>
               </div>
             </CardContent>
           </Card>

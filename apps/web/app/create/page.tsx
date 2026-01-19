@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { Upload, Clock } from "lucide-react";
+import { useState, useRef } from "react";
+import { Upload, Clock, Loader2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 
 type Platform = "twitter" | "discord" | "telegram" | "other";
 
@@ -21,6 +22,7 @@ interface EventFormState {
   platform: Platform;
   eventLink: string;
   bannerColor: string;
+  bannerUrl?: string;
 }
 
 const platformOptions: { value: Platform; label: string }[] = [
@@ -31,6 +33,7 @@ const platformOptions: { value: Platform; label: string }[] = [
 ];
 
 export default function CreateEventPage() {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<EventFormState>({
     title: "",
     description: "",
@@ -43,12 +46,15 @@ export default function CreateEventPage() {
     platform: "twitter",
     eventLink: "",
     bannerColor: "from-blue-600 to-purple-600",
+    bannerUrl: undefined,
   });
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const handleInputChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    >,
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -70,7 +76,74 @@ export default function CreateEventPage() {
       platform: "twitter",
       eventLink: "",
       bannerColor: "from-blue-600 to-purple-600",
+      bannerUrl: undefined,
     });
+    setUploadProgress(0);
+  };
+
+  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast.error("Only image files are allowed");
+      return;
+    }
+
+    // Validate file size (10MB max)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("File size must be less than 10MB");
+      return;
+    }
+
+    try {
+      setUploading(true);
+      setUploadProgress(0);
+
+      const formDataToSend = new FormData();
+      formDataToSend.append("file", file);
+
+      setUploadProgress(30);
+
+      const response = await fetch("/api/events/banner", {
+        method: "POST",
+        body: formDataToSend,
+      });
+
+      setUploadProgress(70);
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to upload banner");
+      }
+
+      const data = await response.json();
+      setFormData((prev) => ({
+        ...prev,
+        bannerUrl: data.url,
+      }));
+
+      setUploadProgress(100);
+      toast.success("Banner uploaded successfully!");
+
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    } catch (error) {
+      console.error("Error uploading banner:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to upload banner",
+      );
+    } finally {
+      setUploading(false);
+      setTimeout(() => setUploadProgress(0), 1000);
+    }
+  };
+
+  const handleBannerClick = () => {
+    fileInputRef.current?.click();
   };
 
   const handleCreateEvent = async (e: React.FormEvent) => {
@@ -325,29 +398,91 @@ export default function CreateEventPage() {
               <Label className="text-sm font-semibold block mb-3">
                 Event Banner
               </Label>
-              <div
-                className={`relative aspect-square rounded-2xl bg-gradient-to-br ${formData.bannerColor} flex items-center justify-center overflow-hidden shadow-lg`}
-              >
-                {/* Decorative gradient overlay */}
-                <div className="absolute inset-0 opacity-30 mix-blend-overlay" />
 
-                {/* Content */}
-                <div className="relative z-10 text-center">
-                  <p className="text-white text-lg font-semibold">
-                    Event Banner
-                  </p>
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                onChange={handleBannerUpload}
+                className="hidden"
+              />
+
+              <div className="w-full" style={{ aspectRatio: "1 / 1" }}>
+                <div
+                  className={`relative w-full h-full rounded-2xl ${
+                    formData.bannerUrl
+                      ? "bg-cover bg-center"
+                      : `bg-gradient-to-br ${formData.bannerColor}`
+                  } flex items-center justify-center overflow-hidden shadow-lg cursor-pointer group transition-opacity hover:opacity-90`}
+                  style={
+                    formData.bannerUrl
+                      ? { backgroundImage: `url(${formData.bannerUrl})` }
+                      : undefined
+                  }
+                  onClick={handleBannerClick}
+                >
+                  {/* Decorative gradient overlay */}
+                  {!formData.bannerUrl && (
+                    <div className="absolute inset-0 opacity-30 mix-blend-overlay" />
+                  )}
+
+                  {/* Content */}
+                  {!formData.bannerUrl && (
+                    <div className="relative z-10 text-center">
+                      <p className="text-white text-lg font-semibold">
+                        Event Banner
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Edit Button */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleBannerClick();
+                    }}
+                    className="absolute bottom-4 right-4 p-3 rounded-full bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-sm z-20"
+                    disabled={uploading}
+                  >
+                    {uploading ? (
+                      <Loader2 className="h-5 w-5 text-white animate-spin" />
+                    ) : formData.bannerUrl ? (
+                      <Check className="h-5 w-5 text-white" />
+                    ) : (
+                      <Upload className="h-5 w-5 text-white" />
+                    )}
+                  </button>
+
+                  {/* Upload Progress */}
+                  {uploadProgress > 0 && uploadProgress < 100 && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-30">
+                      <div className="text-center">
+                        <p className="text-white text-sm font-medium mb-2">
+                          {uploadProgress}%
+                        </p>
+                        <div className="w-24 h-1 bg-white/20 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-white transition-all duration-300"
+                            style={{ width: `${uploadProgress}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-
-                {/* Edit Button */}
-                <button className="absolute bottom-4 right-4 p-3 rounded-full bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-sm z-20">
-                  <Upload className="h-5 w-5 text-white" />
-                </button>
               </div>
 
               {/* Banner Info */}
               <p className="text-xs text-muted-foreground mt-3">
-                Recommended size: 1200x600px
+                Recommended size: 600x600px (Max 10MB)
               </p>
+              {formData.bannerUrl && (
+                <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
+                  <Check className="h-3 w-3" /> Banner uploaded
+                </p>
+              )}
             </div>
           </div>
         </div>

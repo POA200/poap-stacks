@@ -138,7 +138,7 @@ describe("POAP Contract", () => {
       );
 
       const response = simnet.callReadOnlyFn("poap", "get-last-token-id", [], deployer);
-      expect(response.result).toBeOk();
+      expect(response.result).toBeOk(Cl.uint(1));
     });
 
     it("should return token owner", () => {
@@ -170,7 +170,8 @@ describe("POAP Contract", () => {
         [Cl.uint(1)],
         deployer
       );
-      expect(response.result).toBeOk();
+      // Should return Some(wallet1) address since wallet1 claimed the badge
+      expect(response.result).toStrictEqual(Cl.ok(Cl.some(Cl.principal(wallet1))));
     });
   });
 
