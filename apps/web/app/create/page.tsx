@@ -188,7 +188,7 @@ export default function CreateEventPage() {
         startTime,
         endTime,
         maxAttendees: 1000, // Default max attendees
-        onFinish: (data) => {
+        onFinish: () => {
           setUploading(false);
           toast.success(
             "Event created successfully! Check the blockchain explorer for confirmation.",
