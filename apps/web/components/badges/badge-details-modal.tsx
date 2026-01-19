@@ -1,6 +1,5 @@
-import { X, ExternalLink, Download, Share2, Copy, Trophy } from "lucide-react";
+import { X, ExternalLink, Share2, Copy, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
 interface BadgeDetailsModalProps {

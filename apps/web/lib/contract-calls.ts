@@ -41,7 +41,7 @@ export const createEvent = async ({
   startTime: number;
   endTime: number;
   maxAttendees: number;
-  onFinish?: (data: any) => void;
+  onFinish?: (data: { txId: string }) => void;
   onCancel?: () => void;
 }) => {
   const network = getCurrentNetwork();
@@ -80,7 +80,7 @@ export const claimBadge = async ({
   onCancel,
 }: {
   eventId: number;
-  onFinish?: (data: any) => void;
+  onFinish?: (data: { txId: string }) => void;
   onCancel?: () => void;
 }) => {
   const network = getCurrentNetwork();
@@ -114,7 +114,7 @@ export const updateEventStatus = async ({
 }: {
   eventId: number;
   active: boolean;
-  onFinish?: (data: any) => void;
+  onFinish?: (data: { txId: string }) => void;
   onCancel?: () => void;
 }) => {
   const network = getCurrentNetwork();
