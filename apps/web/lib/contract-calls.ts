@@ -44,7 +44,7 @@ export const createEvent = async ({
   onFinish?: (data: { txId: string }) => void;
   onCancel?: () => void;
 }) => {
-  const network = getCurrentNetwork();
+  const networkType = getCurrentNetwork();
   const { POAP } = getContractAddress();
   const { address, name: contractName } = parseContractAddress(POAP);
 
@@ -58,7 +58,7 @@ export const createEvent = async ({
   ];
 
   await openContractCall({
-    network,
+    network: networkType,
     anchorMode: AnchorMode.Any,
     contractAddress: address,
     contractName,
@@ -83,14 +83,14 @@ export const claimBadge = async ({
   onFinish?: (data: { txId: string }) => void;
   onCancel?: () => void;
 }) => {
-  const network = getCurrentNetwork();
+  const networkType = getCurrentNetwork();
   const { POAP } = getContractAddress();
   const { address, name: contractName } = parseContractAddress(POAP);
 
   const functionArgs = [uintCV(eventId)];
 
   await openContractCall({
-    network,
+    network: networkType,
     anchorMode: AnchorMode.Any,
     contractAddress: address,
     contractName,
@@ -117,14 +117,14 @@ export const updateEventStatus = async ({
   onFinish?: (data: { txId: string }) => void;
   onCancel?: () => void;
 }) => {
-  const network = getCurrentNetwork();
+  const networkType = getCurrentNetwork();
   const { POAP } = getContractAddress();
   const { address, name: contractName } = parseContractAddress(POAP);
 
   const functionArgs = [uintCV(eventId), boolCV(active)];
 
   await openContractCall({
-    network,
+    network: networkType,
     anchorMode: AnchorMode.Any,
     contractAddress: address,
     contractName,
