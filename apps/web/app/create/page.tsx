@@ -148,8 +148,80 @@ export default function CreateEventPage() {
 
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement event creation logic
-    console.log("Event created:", formData);
+
+    // Validate required fields
+    if (
+      !formData.title ||
+      !formData.description ||
+      !formData.date ||
+      !formData.startTime ||
+      !formData.endTime
+    ) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    try {
+      setUploading(true);
+
+      // Convert date and time to Unix timestamps
+      const eventDate = new Date(`${formData.date}T${formData.startTime}`);
+      const eventEndDate = new Date(`${formData.date}T${formData.endTime}`);
+      const startTime = Math.floor(eventDate.getTime() / 1000);
+      const endTime = Math.floor(eventEndDate.getTime() / 1000);
+
+      // Validate times
+      if (startTime >= endTime) {
+        toast.error("Start time must be before end time");
+        setUploading(false);
+        return;
+      }
+
+      // Import the contract call function
+      const { createEvent } = await import("@/lib/contract-calls");
+
+      // Create event on-chain
+      await createEvent({
+        name: formData.title,
+        description: formData.description,
+        imageUri: formData.bannerUrl || "ipfs://default",
+        startTime,
+        endTime,
+        maxAttendees: 1000, // Default max attendees
+        onFinish: (data) => {
+          setUploading(false);
+          toast.success(
+            "Event created successfully! Check the blockchain explorer for confirmation.",
+          );
+
+          // Reset form
+          setFormData({
+            title: "",
+            description: "",
+            date: "",
+            startTime: "",
+            endTime: "",
+            claimOpens: "",
+            claimCloses: "",
+            hostName: "",
+            platform: "twitter",
+            eventLink: "",
+            bannerColor: "from-blue-600 to-purple-600",
+            bannerUrl: undefined,
+          });
+        },
+        onCancel: () => {
+          setUploading(false);
+          toast.error("Transaction cancelled by user");
+        },
+      });
+    } catch (error) {
+      setUploading(false);
+      console.error("Error creating event:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to create event",
+      );
+    }
   };
 
   return (
@@ -384,9 +456,17 @@ export default function CreateEventPage() {
                 </Button>
                 <Button
                   type="submit"
-                  className="flex-1 bg-primary hover:bg-primary/90"
+                  disabled={uploading}
+                  className="flex-1 bg-primary hover:bg-primary/90 disabled:opacity-50"
                 >
-                  Create Event
+                  {uploading ? (
+                    <>
+                      <Loader2 className="inline-block mr-2 h-4 w-4 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    "Create Event"
+                  )}
                 </Button>
               </div>
             </form>
