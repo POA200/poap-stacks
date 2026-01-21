@@ -28,7 +28,6 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ipfsToHttp } from "@/lib/utils";
 
 interface ManageEventPageProps {
   params: Promise<{
@@ -145,12 +144,24 @@ export default function ManageEventPage({ params }: ManageEventPageProps) {
     );
   }
 
+  // Compute derived values
+  const now = new Date();
+  const startTime = new Date(event.startTime);
+  const endTime = new Date(event.endTime);
+  const isClaimWindowOpen =
+    event.isActive && now >= startTime && now <= endTime;
+
+  // TODO: Fetch recent claims from API
+  const recentClaims: Array<{ address: string; time: string; txId: string }> =
+    [];
+
   const stats = {
     totalClaims: event._count.claims,
     totalSupply: event.maxAttendees || 0,
     claimRate: event.maxAttendees
       ? Math.round((event._count.claims / event.maxAttendees) * 100)
       : 0,
+    uniqueVisitors: 0, // TODO: Implement visitor tracking
   };
 
   return (

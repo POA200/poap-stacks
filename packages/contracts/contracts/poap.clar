@@ -35,7 +35,7 @@
   {
     name: (string-utf8 100),
     description: (string-utf8 500),
-    image-uri: (string-ascii 512),
+    image-uri: (string-ascii 256),
     organizer: principal,
     start-time: uint,
     end-time: uint,
