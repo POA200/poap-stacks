@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
+import { ipfsToHttp } from "@/lib/utils";
 
 interface Event {
   id: string;
@@ -64,7 +65,7 @@ export default function Home() {
   const featuredEvents = useMemo(() => {
     const sorted = [...events].sort(
       (a, b) =>
-        new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+        new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
     );
     return sorted.slice(0, 3);
   }, [events]);
@@ -135,7 +136,7 @@ export default function Home() {
                   <div className="relative h-32 bg-gradient-to-br from-blue-600 via-purple-600 to-purple-800">
                     {event.bannerUrl ? (
                       <img
-                        src={event.bannerUrl}
+                        src={ipfsToHttp(event.bannerUrl) || event.bannerUrl}
                         alt={event.title}
                         className="w-full h-full object-cover"
                       />

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
+import { ipfsToHttp } from "@/lib/utils";
 import Link from "next/link";
 
 interface Event {
@@ -92,7 +93,7 @@ function EventCard({ event, featured = false }: EventCardProps) {
       >
         {event.bannerUrl ? (
           <img
-            src={event.bannerUrl}
+            src={ipfsToHttp(event.bannerUrl) || event.bannerUrl}
             alt={event.title}
             className="object-cover w-full h-full"
           />
@@ -277,7 +278,10 @@ export default function EventsPage() {
             >
               {featuredEvent.bannerUrl ? (
                 <img
-                  src={featuredEvent.bannerUrl}
+                  src={
+                    ipfsToHttp(featuredEvent.bannerUrl) ||
+                    featuredEvent.bannerUrl
+                  }
                   alt={featuredEvent.title}
                   className="object-cover w-full h-full"
                 />

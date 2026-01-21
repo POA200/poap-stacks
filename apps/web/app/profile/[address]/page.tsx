@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import BadgeDetailsModal from "@/components/badges/badge-details-modal";
 import { toast } from "sonner";
+import { ipfsToHttp } from "@/lib/utils";
 
 interface UserData {
   id: string;
@@ -433,7 +434,10 @@ export default function PublicProfilePage({ params }: PageProps) {
                     {claim.event.bannerUrl && (
                       <div className="relative w-full h-40 overflow-hidden">
                         <img
-                          src={claim.event.bannerUrl}
+                          src={
+                            ipfsToHttp(claim.event.bannerUrl) ||
+                            claim.event.bannerUrl
+                          }
                           alt={claim.event.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                         />

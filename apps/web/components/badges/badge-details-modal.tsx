@@ -1,6 +1,7 @@
 import { X, ExternalLink, Share2, Copy, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { ipfsToHttp } from "@/lib/utils";
 
 interface BadgeDetailsModalProps {
   badge: {
@@ -99,7 +100,7 @@ export default function BadgeDetailsModal({
           {badge.event.bannerUrl && (
             <div className="relative w-full h-48 rounded-lg overflow-hidden">
               <img
-                src={badge.event.bannerUrl}
+                src={ipfsToHttp(badge.event.bannerUrl) || badge.event.bannerUrl}
                 alt={badge.event.title}
                 className="w-full h-full object-cover"
               />

@@ -188,10 +188,47 @@ export default function CreateEventPage() {
         startTime,
         endTime,
         maxAttendees: 1000, // Default max attendees
-        onFinish: () => {
+        onFinish: async (data) => {
+          try {
+            // Get wallet address from Stacks connect
+            const { getLocalStorage } = await import("@stacks/connect");
+            const stacksData = getLocalStorage();
+            const walletAddress = stacksData?.addresses?.stx?.[0]?.address;
+
+            if (walletAddress) {
+              const response = await fetch("/api/events", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  title: formData.title,
+                  description: formData.description,
+                  startTime: new Date(
+                    `${formData.date}T${formData.startTime}`,
+                  ).toISOString(),
+                  endTime: new Date(
+                    `${formData.date}T${formData.endTime}`,
+                  ).toISOString(),
+                  bannerUrl: formData.bannerUrl || null,
+                  maxAttendees: 1000,
+                  walletAddress,
+                  txId: data.txId,
+                }),
+              });
+
+              if (!response.ok) {
+                console.error("Failed to save event to database");
+              }
+            }
+          } catch (dbError) {
+            console.error("Failed to save event to database:", dbError);
+            // Don't block the success flow if DB save fails
+          }
+
           setUploading(false);
           toast.success(
-            "Event created successfully! Check the blockchain explorer for confirmation.",
+            "Event created successfully! It will appear in the events list shortly.",
           );
 
           // Reset form
