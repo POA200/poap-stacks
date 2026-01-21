@@ -38,6 +38,7 @@ model Event {
   endTime         DateTime
   bannerUrl       String?
   maxAttendees    Int?
+  contractEventId Int?     @unique  // On-chain event ID from smart contract
   contractAddress String?  @unique
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
@@ -51,6 +52,7 @@ model Event {
   @@index([hostId])
   @@index([startTime])
   @@index([isActive])
+  @@index([contractEventId])
   @@map("events")
 }
 

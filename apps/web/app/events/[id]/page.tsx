@@ -42,6 +42,7 @@ interface EventData {
   endTime: string;
   bannerUrl: string | null;
   maxAttendees: number | null;
+  contractEventId: number | null;
   isActive: boolean;
   host: {
     id: string;
@@ -138,13 +139,24 @@ export default function EventPage({ params }: EventPageProps) {
       return;
     }
 
+    if (!event?.contractEventId) {
+      setClaimStatus("error");
+      setErrorMessage(
+        "This event is not yet registered on-chain. Please try again later.",
+      );
+      return;
+    }
+
     try {
       setClaimStatus("checking");
       setProgress(20);
 
       // Check if user has already claimed
       const { hasClaimedBadge } = await import("@/lib/contract-calls");
-      const claimed = await hasClaimedBadge(parseInt(eventId), walletAddress);
+      const claimed = await hasClaimedBadge(
+        event.contractEventId,
+        walletAddress,
+      );
 
       if (claimed.value === true) {
         setClaimStatus("already-claimed");
@@ -157,7 +169,7 @@ export default function EventPage({ params }: EventPageProps) {
       // Call smart contract to claim badge
       const { claimBadge } = await import("@/lib/contract-calls");
       await claimBadge({
-        eventId: parseInt(eventId),
+        eventId: event.contractEventId,
         onFinish: (data) => {
           setProgress(100);
           setTxId(data.txId);

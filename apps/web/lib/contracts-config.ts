@@ -45,6 +45,7 @@ export const CONTRACT_FUNCTIONS = {
   // Read-only functions
   GET_EVENT: 'get-event',
   GET_LAST_TOKEN_ID: 'get-last-token-id',
+  GET_LAST_EVENT_ID: 'get-last-event-id',
   GET_TOKEN_URI: 'get-token-uri',
   GET_OWNER: 'get-owner',
   HAS_CLAIMED_BADGE: 'has-claimed-badge',

@@ -49,6 +49,7 @@ export async function POST(request: Request) {
       maxAttendees,
       walletAddress,
       txId,
+      contractEventId,
     } = body;
 
     // Validate required fields
@@ -80,6 +81,7 @@ export async function POST(request: Request) {
         bannerUrl,
         maxAttendees,
         hostId: user.id,
+        contractEventId: contractEventId ? parseInt(contractEventId) : null,
         contractAddress: txId, // Store transaction ID as reference
         isActive: true,
       },

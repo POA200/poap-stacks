@@ -195,6 +195,10 @@
 
 ;; Read-only Functions
 
+(define-read-only (get-last-event-id)
+  (ok (var-get last-event-id))
+)
+
 (define-read-only (get-event (event-id uint))
   (ok (map-get? events { event-id: event-id }))
 )

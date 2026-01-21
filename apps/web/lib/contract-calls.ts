@@ -181,6 +181,26 @@ export const hasClaimedBadge = async (
 };
 
 /**
+ * Read-only: Get last event ID
+ */
+export const getLastEventId = async () => {
+  const network = getCurrentNetwork();
+  const { POAP } = getContractAddress();
+  const { address, name: contractName } = parseContractAddress(POAP);
+
+  const result = await fetchCallReadOnlyFunction({
+    network,
+    contractAddress: address,
+    contractName,
+    functionName: CONTRACT_FUNCTIONS.GET_LAST_EVENT_ID,
+    functionArgs: [],
+    senderAddress: address,
+  });
+
+  return cvToJSON(result);
+};
+
+/**
  * Read-only: Get last token ID
  */
 export const getLastTokenId = async () => {
