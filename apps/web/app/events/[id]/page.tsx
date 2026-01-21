@@ -24,11 +24,42 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ipfsToHttp } from "@/lib/utils";
 
 interface EventPageProps {
   params: Promise<{
     id: string;
   }>;
+}
+
+interface EventData {
+  id: string;
+  title: string;
+  description: string | null;
+  location: string | null;
+  startTime: string;
+  endTime: string;
+  bannerUrl: string | null;
+  maxAttendees: number | null;
+  isActive: boolean;
+  host: {
+    id: string;
+    walletAddress: string;
+    username: string | null;
+    avatarUrl: string | null;
+  };
+  claims: Array<{
+    id: string;
+    claimedAt: string;
+    user: {
+      walletAddress: string;
+      username: string | null;
+    };
+  }>;
+  _count: {
+    claims: number;
+  };
 }
 
 type ClaimStatus =
@@ -42,6 +73,8 @@ type ClaimStatus =
 
 export default function EventPage({ params }: EventPageProps) {
   const [eventId, setEventId] = useState<string>("");
+  const [event, setEvent] = useState<EventData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [claimStatus, setClaimStatus] = useState<ClaimStatus>("idle");
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [txId, setTxId] = useState<string | null>(null);
@@ -51,6 +84,28 @@ export default function EventPage({ params }: EventPageProps) {
   useEffect(() => {
     params.then((p) => setEventId(p.id));
   }, [params]);
+
+  useEffect(() => {
+    if (!eventId) return;
+
+    // Fetch event data
+    const fetchEvent = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`/api/events/${eventId}`);
+        if (!response.ok) throw new Error("Failed to fetch event");
+        const data = await response.json();
+        setEvent(data);
+      } catch (error) {
+        console.error("Error fetching event:", error);
+        setErrorMessage("Failed to load event details");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEvent();
+  }, [eventId]);
 
   useEffect(() => {
     // Check wallet connection
@@ -153,6 +208,75 @@ export default function EventPage({ params }: EventPageProps) {
     return `${addr.slice(0, 8)}...${addr.slice(-6)}`;
   };
 
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  const formatTime = (date: string) => {
+    return new Date(date).toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
+  const getTimeAgo = (date: string) => {
+    const seconds = Math.floor(
+      (new Date().getTime() - new Date(date).getTime()) / 1000,
+    );
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    return `${Math.floor(seconds / 86400)}d ago`;
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-8 max-w-7xl">
+          <Skeleton className="h-10 w-32 mb-6" />
+          <Skeleton className="h-64 rounded-3xl mb-8" />
+          <div className="flex items-start justify-between mb-8">
+            <div className="flex items-start gap-4 flex-1">
+              <Skeleton className="w-12 h-12 rounded-full" />
+              <div className="space-y-2 flex-1">
+                <Skeleton className="h-8 w-1/2" />
+                <Skeleton className="h-5 w-1/3" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!event) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-8 max-w-7xl">
+          <Link
+            href="/events"
+            className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Events
+          </Link>
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Event Not Found</AlertTitle>
+            <AlertDescription>
+              The event you&apos;re looking for doesn&apos;t exist or has been
+              removed.
+            </AlertDescription>
+          </Alert>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-7xl">
@@ -167,7 +291,15 @@ export default function EventPage({ params }: EventPageProps) {
 
         {/* Hero Banner */}
         <div className="relative h-64 rounded-3xl bg-gradient-to-br from-blue-600 via-purple-600 to-purple-800 overflow-hidden mb-8 shadow-xl">
-          <div className="absolute inset-0 opacity-20 mix-blend-overlay" />
+          {event.bannerUrl ? (
+            <img
+              src={ipfsToHttp(event.bannerUrl) || event.bannerUrl}
+              alt={event.title}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="absolute inset-0 opacity-20 mix-blend-overlay" />
+          )}
         </div>
 
         {/* Event Title Section */}
@@ -177,9 +309,9 @@ export default function EventPage({ params }: EventPageProps) {
               <span className="text-2xl">🎙️</span>
             </div>
             <div>
-              <h1 className="text-3xl font-bold mb-1">Stacks Defi Show #80</h1>
+              <h1 className="text-3xl font-bold mb-1">{event.title}</h1>
               <p className="text-muted-foreground">
-                Bitcoin L2 Weekly Breakdown
+                {event.description || "No description provided"}
               </p>
             </div>
           </div>
@@ -263,21 +395,23 @@ export default function EventPage({ params }: EventPageProps) {
                     Host:
                   </h3>
                   <p className="text-sm font-medium text-right">
-                    Stacks Foundation
+                    {event.host.username ||
+                      getSlicedAddress(event.host.walletAddress)}
                   </p>
                 </div>
                 <div className="flex justify-between items-start">
                   <h3 className="text-sm font-medium text-muted-foreground">
                     Event ID:
                   </h3>
-                  <p className="text-sm font-mono">EVT-80-2025</p>
+                  <p className="text-sm font-mono">{event.id.slice(0, 12)}</p>
                 </div>
                 <div className="flex justify-between items-start">
                   <h3 className="text-sm font-medium text-muted-foreground">
                     Claim Window:
                   </h3>
                   <p className="text-sm font-medium text-right">
-                    6PM - 7:20PM UTC
+                    {formatTime(event.startTime)} - {formatTime(event.endTime)}{" "}
+                    UTC
                   </p>
                 </div>
               </div>
@@ -289,7 +423,7 @@ export default function EventPage({ params }: EventPageProps) {
                   disabled
                 >
                   <Calendar className="h-4 w-4 text-primary" />
-                  <span className="text-sm">Nov 30, 2025</span>
+                  <span className="text-sm">{formatDate(event.startTime)}</span>
                 </Button>
                 <Button
                   variant="outline"
@@ -297,16 +431,21 @@ export default function EventPage({ params }: EventPageProps) {
                   disabled
                 >
                   <Clock className="h-4 w-4 text-primary" />
-                  <span className="text-sm">6PM - 7PM UTC</span>
+                  <span className="text-sm">
+                    {formatTime(event.startTime)} - {formatTime(event.endTime)}{" "}
+                    UTC
+                  </span>
                 </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-3 h-auto py-3"
-                  disabled
-                >
-                  <MapPin className="h-4 w-4 text-primary" />
-                  <span className="text-sm">Twitter Spaces (@Stacks)</span>
-                </Button>
+                {event.location && (
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-3 h-auto py-3"
+                    disabled
+                  >
+                    <MapPin className="h-4 w-4 text-primary" />
+                    <span className="text-sm">{event.location}</span>
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -318,10 +457,7 @@ export default function EventPage({ params }: EventPageProps) {
                 Description:
               </h3>
               <p className="text-sm">
-                Join our weekly deep dive into Stacks DeFi ecosystem. This week
-                we&apos;re covering Bitcoin L2 developments, recent protocol
-                upgrades, and the latest trends in decentralized finance on
-                Stacks.
+                {event.description || "No description provided"}
               </p>
             </div>
 
@@ -329,8 +465,14 @@ export default function EventPage({ params }: EventPageProps) {
               <h3 className="text-sm font-medium text-muted-foreground">
                 Claim Status:
               </h3>
-              <Badge className="bg-green-500/10 text-green-500 hover:bg-green-500/20 border-green-500/20">
-                Active
+              <Badge
+                className={
+                  event.isActive
+                    ? "bg-green-500/10 text-green-500 hover:bg-green-500/20 border-green-500/20"
+                    : "bg-gray-500/10 text-gray-500 hover:bg-gray-500/20 border-gray-500/20"
+                }
+              >
+                {event.isActive ? "Active" : "Inactive"}
               </Badge>
             </div>
 
@@ -338,7 +480,7 @@ export default function EventPage({ params }: EventPageProps) {
               <h3 className="text-sm font-medium text-muted-foreground">
                 Total Claims:
               </h3>
-              <p className="text-sm font-medium">45</p>
+              <p className="text-sm font-medium">{event._count.claims}</p>
             </div>
 
             {walletAddress && (
@@ -420,24 +562,38 @@ export default function EventPage({ params }: EventPageProps) {
             </CardHeader>
             <CardContent>
               <div className="aspect-square bg-gradient-to-br from-purple-500 via-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg mb-4">
-                <div className="text-center text-white p-4">
-                  <div className="text-4xl mb-2">🎙️</div>
-                  <div className="text-sm font-bold">Stacks DeFi Show #80</div>
-                </div>
+                {event.bannerUrl ? (
+                  <img
+                    src={ipfsToHttp(event.bannerUrl) || event.bannerUrl}
+                    alt={event.title}
+                    className="w-full h-full object-cover rounded-xl"
+                  />
+                ) : (
+                  <div className="text-center text-white p-4">
+                    <div className="text-4xl mb-2">🎙️</div>
+                    <div className="text-sm font-bold">{event.title}</div>
+                  </div>
+                )}
               </div>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Supply:</span>
-                  <span className="font-medium">100</span>
+                  <span className="font-medium">
+                    {event.maxAttendees || "Unlimited"}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Claimed:</span>
-                  <span className="font-medium">45</span>
+                  <span className="font-medium">{event._count.claims}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Remaining:</span>
-                  <span className="font-medium text-primary">55</span>
-                </div>
+                {event.maxAttendees && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Remaining:</span>
+                    <span className="font-medium text-primary">
+                      {event.maxAttendees - event._count.claims}
+                    </span>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -522,50 +678,32 @@ export default function EventPage({ params }: EventPageProps) {
               <CardDescription>Latest badge claims</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                <Button
-                  asChild
-                  variant="ghost"
-                  className="w-full justify-between py-2 h-auto px-2 border-b rounded-none hover:bg-muted/50"
-                >
-                  <Link href="/profile/SP2J6ZY48KNRV9EJ7">
-                    <span className="font-mono text-xs">
-                      SP2J6ZY48...KNRV9EJ7
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      2h ago
-                    </span>
-                  </Link>
-                </Button>
-                <Button
-                  asChild
-                  variant="ghost"
-                  className="w-full justify-between py-2 h-auto px-2 border-b rounded-none hover:bg-muted/50"
-                >
-                  <Link href="/profile/SP3FBR2AG8DVTEC6E">
-                    <span className="font-mono text-xs">
-                      SP3FBR2AG...8DVTEC6E
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      5h ago
-                    </span>
-                  </Link>
-                </Button>
-                <Button
-                  asChild
-                  variant="ghost"
-                  className="w-full justify-between py-2 h-auto px-2 rounded-none hover:bg-muted/50"
-                >
-                  <Link href="/profile/SP1HJQR4K2YWPJV7M">
-                    <span className="font-mono text-xs">
-                      SP1HJQR4K...2YWPJV7M
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      1d ago
-                    </span>
-                  </Link>
-                </Button>
-              </div>
+              {event.claims.length > 0 ? (
+                <div className="space-y-2">
+                  {event.claims.map((claim) => (
+                    <Button
+                      key={claim.id}
+                      asChild
+                      variant="ghost"
+                      className="w-full justify-between py-2 h-auto px-2 border-b rounded-none hover:bg-muted/50"
+                    >
+                      <Link href={`/profile/${claim.user.walletAddress}`}>
+                        <span className="font-mono text-xs">
+                          {claim.user.username ||
+                            getSlicedAddress(claim.user.walletAddress)}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {getTimeAgo(claim.claimedAt)}
+                        </span>
+                      </Link>
+                    </Button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No claims yet. Be the first!
+                </p>
+              )}
             </CardContent>
           </Card>
 

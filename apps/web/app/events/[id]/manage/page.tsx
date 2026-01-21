@@ -27,6 +27,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ipfsToHttp } from "@/lib/utils";
 
 interface ManageEventPageProps {
   params: Promise<{
@@ -34,18 +36,60 @@ interface ManageEventPageProps {
   }>;
 }
 
+interface EventData {
+  id: string;
+  title: string;
+  description: string | null;
+  location: string | null;
+  startTime: string;
+  endTime: string;
+  bannerUrl: string | null;
+  maxAttendees: number | null;
+  isActive: boolean;
+  host: {
+    id: string;
+    walletAddress: string;
+    username: string | null;
+  };
+  _count: {
+    claims: number;
+  };
+}
+
 export default function ManageEventPage({ params }: ManageEventPageProps) {
   const [eventId, setEventId] = useState<string>("");
-  const [isClaimWindowOpen, setIsClaimWindowOpen] = useState(true);
+  const [event, setEvent] = useState<EventData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     params.then((p) => setEventId(p.id));
   }, [params]);
 
-  const handleToggleClaimWindow = () => {
-    setIsClaimWindowOpen(!isClaimWindowOpen);
-    // TODO: Implement actual claim window toggle logic
+  useEffect(() => {
+    if (!eventId) return;
+
+    const fetchEvent = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`/api/events/${eventId}`);
+        if (!response.ok) throw new Error("Failed to fetch event");
+        const data = await response.json();
+        setEvent(data);
+      } catch (error) {
+        console.error("Error fetching event:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEvent();
+  }, [eventId]);
+
+  const handleToggleClaimWindow = async () => {
+    if (!event) return;
+    // TODO: Implement actual claim window toggle logic via API
+    setEvent({ ...event, isActive: !event.isActive });
   };
 
   const handleCopyLink = () => {
@@ -56,17 +100,9 @@ export default function ManageEventPage({ params }: ManageEventPageProps) {
   };
 
   const handleExportAttendees = () => {
-    // TODO: Implement export functionality
-    const data = [
-      {
-        address: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",
-        claimedAt: "2025-11-30T18:23:12Z",
-      },
-      { address: "SP3FBR2AG8DVTEC6E", claimedAt: "2025-11-30T19:45:33Z" },
-    ];
-    const csv =
-      "Address,Claimed At\n" +
-      data.map((d) => `${d.address},${d.claimedAt}`).join("\n");
+    if (!event) return;
+    // TODO: Implement proper export with event.claims data
+    const csv = "Address,Claimed At\n"; // Add actual data here
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -75,29 +111,47 @@ export default function ManageEventPage({ params }: ManageEventPageProps) {
     a.click();
   };
 
-  // Mock data
-  const stats = {
-    totalClaims: 45,
-    totalSupply: 100,
-    uniqueVisitors: 234,
-    claimRate: 45,
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-8 max-w-7xl">
+          <Skeleton className="h-10 w-32 mb-8" />
+          <Skeleton className="h-64 w-full mb-8" />
+        </div>
+      </div>
+    );
+  }
 
-  const recentClaims = [
-    {
-      address: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",
-      time: "2 minutes ago",
-      txId: "0xabc123...",
-    },
-    {
-      address: "SP3FBR2AGXYZ8DVTEC6E",
-      time: "15 minutes ago",
-      txId: "0xdef456...",
-    },
-    { address: "SP1HJQR4K2YWPJV7M", time: "1 hour ago", txId: "0xghi789..." },
-    { address: "SP4MNBXY3KLPQRS9T", time: "2 hours ago", txId: "0xjkl012..." },
-    { address: "SP5OPQRZ4TUVWXY1A", time: "3 hours ago", txId: "0xmno345..." },
-  ];
+  if (!event) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-8 max-w-7xl">
+          <Link
+            href="/events"
+            className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Events
+          </Link>
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Event Not Found</AlertTitle>
+            <AlertDescription>
+              The event you&apos;re trying to manage doesn&apos;t exist.
+            </AlertDescription>
+          </Alert>
+        </div>
+      </div>
+    );
+  }
+
+  const stats = {
+    totalClaims: event._count.claims,
+    totalSupply: event.maxAttendees || 0,
+    claimRate: event.maxAttendees
+      ? Math.round((event._count.claims / event.maxAttendees) * 100)
+      : 0,
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -115,7 +169,7 @@ export default function ManageEventPage({ params }: ManageEventPageProps) {
             <div>
               <h1 className="text-4xl font-bold mb-2">Manage Event</h1>
               <p className="text-muted-foreground">
-                Stacks DeFi Show #80 • Event ID: {eventId}
+                {event.title} • Event ID: {event.id.slice(0, 12)}
               </p>
             </div>
             <div className="flex gap-3">
