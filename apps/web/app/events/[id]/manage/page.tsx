@@ -42,6 +42,8 @@ interface EventData {
   location: string | null;
   startTime: string;
   endTime: string;
+  claimOpensAt: string | null;
+  claimClosesAt: string | null;
   bannerUrl: string | null;
   maxAttendees: number | null;
   isActive: boolean;
@@ -333,7 +335,21 @@ export default function ManageEventPage({ params }: ManageEventPageProps) {
                     </h4>
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4 text-muted-foreground" />
-                      <p className="text-sm">Nov 30, 6:00 PM UTC</p>
+                      <p className="text-sm">
+                        {event.claimOpensAt
+                          ? new Date(event.claimOpensAt).toLocaleString(
+                              "en-US",
+                              {
+                                month: "short",
+                                day: "numeric",
+                                hour: "numeric",
+                                minute: "2-digit",
+                                timeZone: "UTC",
+                                timeZoneName: "short",
+                              },
+                            )
+                          : "Not set"}
+                      </p>
                     </div>
                   </div>
                   <div>
@@ -342,7 +358,21 @@ export default function ManageEventPage({ params }: ManageEventPageProps) {
                     </h4>
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4 text-muted-foreground" />
-                      <p className="text-sm">Nov 30, 7:20 PM UTC</p>
+                      <p className="text-sm">
+                        {event.claimClosesAt
+                          ? new Date(event.claimClosesAt).toLocaleString(
+                              "en-US",
+                              {
+                                month: "short",
+                                day: "numeric",
+                                hour: "numeric",
+                                minute: "2-digit",
+                                timeZone: "UTC",
+                                timeZoneName: "short",
+                              },
+                            )
+                          : "Not set"}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -568,9 +598,7 @@ export default function ManageEventPage({ params }: ManageEventPageProps) {
                 <div className="aspect-square bg-gradient-to-br from-purple-500 via-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
                   <div className="text-center text-white p-4">
                     <div className="text-4xl mb-2">🎙️</div>
-                    <div className="text-sm font-bold">
-                      Stacks DeFi Show #80
-                    </div>
+                    <div className="text-sm font-bold">Stacks</div>
                   </div>
                 </div>
               </CardContent>

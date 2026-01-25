@@ -196,6 +196,22 @@ export default function CreateEventPage() {
             const walletAddress = stacksData?.addresses?.stx?.[0]?.address;
 
             if (walletAddress) {
+              // Build claim window dates if provided
+              let claimOpensAt = null;
+              let claimClosesAt = null;
+
+              if (formData.claimOpens) {
+                claimOpensAt = new Date(
+                  `${formData.date}T${formData.claimOpens}`,
+                ).toISOString();
+              }
+
+              if (formData.claimCloses) {
+                claimClosesAt = new Date(
+                  `${formData.date}T${formData.claimCloses}`,
+                ).toISOString();
+              }
+
               const response = await fetch("/api/events", {
                 method: "POST",
                 headers: {
@@ -210,6 +226,8 @@ export default function CreateEventPage() {
                   endTime: new Date(
                     `${formData.date}T${formData.endTime}`,
                   ).toISOString(),
+                  claimOpensAt,
+                  claimClosesAt,
                   bannerUrl: formData.bannerUrl || null,
                   maxAttendees: 1000,
                   walletAddress,
@@ -378,6 +396,9 @@ export default function CreateEventPage() {
               {/* Claim Window */}
               <div className="space-y-3">
                 <Label className="text-sm font-semibold">Claim Window</Label>
+                <p className="text-xs text-muted-foreground">
+                  Optional: Set specific times when attendees can claim badges
+                </p>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -397,7 +418,6 @@ export default function CreateEventPage() {
                         onChange={handleInputChange}
                         placeholder="6:00 PM UTC"
                         className="bg-input/50 border-input text-sm"
-                        required
                       />
                     </div>
                   </div>
@@ -419,7 +439,6 @@ export default function CreateEventPage() {
                         onChange={handleInputChange}
                         placeholder="7:00 PM UTC"
                         className="bg-input/50 border-input text-sm"
-                        required
                       />
                     </div>
                   </div>

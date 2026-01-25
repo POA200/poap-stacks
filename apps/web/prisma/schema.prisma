@@ -36,6 +36,8 @@ model Event {
   location        String?
   startTime       DateTime
   endTime         DateTime
+  claimOpensAt    DateTime?
+  claimClosesAt   DateTime?
   bannerUrl       String?
   maxAttendees    Int?
   contractEventId Int?     @unique  // On-chain event ID from smart contract
